@@ -62,6 +62,27 @@ export const users = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// SESSIONS
+// ---------------------------------------------------------------------------
+
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: text("id").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    userIdIdx: index("sessions_user_id_idx").on(table.userId),
+  })
+);
+
+// ---------------------------------------------------------------------------
 // BOOKS
 // ---------------------------------------------------------------------------
 
@@ -268,6 +289,14 @@ export const usersRelations = relations(users, ({ many }) => ({
   projects: many(projects),
   annotations: many(annotations),
   versions: many(versions),
+  sessions: many(sessions),
+}));
+
+export const sessionsRelations = relations(sessions, ({ one }) => ({
+  user: one(users, {
+    fields: [sessions.userId],
+    references: [users.id],
+  }),
 }));
 
 export const booksRelations = relations(books, ({ many }) => ({
@@ -349,6 +378,9 @@ export const versionEditsRelations = relations(versionEdits, ({ one }) => ({
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
+
+export type Session = typeof sessions.$inferSelect;
+export type NewSession = typeof sessions.$inferInsert;
 
 export type Book = typeof books.$inferSelect;
 export type NewBook = typeof books.$inferInsert;
