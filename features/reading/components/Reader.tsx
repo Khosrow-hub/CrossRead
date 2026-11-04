@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type Chapter = {
@@ -16,10 +16,12 @@ type Passage = {
   position: number;
 };
 
+type AnnotationType = "highlight" | "note" | "question" | "interpretation";
+
 type Annotation = {
   id: string;
   passageId: string;
-  type: "highlight" | "note" | "question" | "interpretation";
+  type: AnnotationType;
   content: string;
   createdAt: string;
   isDraft: boolean;
@@ -34,7 +36,13 @@ type ReaderProps = {
 
 type Draft = {
   passageId: string;
+  type: AnnotationType;
   content: string;
+};
+
+type SelectionInfo = {
+  passageId: string;
+  type: AnnotationType;
 };
 
 export default function Reader({
@@ -46,10 +54,12 @@ export default function Reader({
   const router = useRouter();
   const [annotations, setAnnotations] = useState<Annotation[]>(initialAnnotations);
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [selection, setSelection] = useState<SelectionInfo | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState("");
   const [saveBarOpen, setSaveBarOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const firstChapter = chapters[0];
@@ -60,10 +70,46 @@ export default function Reader({
         currentLocation: firstChapter ? firstChapter.title : "Started reading",
         progressPercentage: 0,
       }),
-    }).catch(() => {
-      // progress tracking is not critical; do not break the reader if it fails
-    });
+    }).catch(() => {});
   }, [projectId, chapters]);
+
+  useEffect(() => {
+    function handleSelection() {
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+        setSelection(null);
+        return;
+      }
+
+      const range = sel.getRangeAt(0);
+      const node = range.startContainer.parentElement;
+      if (!node) {
+        setSelection(null);
+        return;
+      }
+
+      const passageEl = node.closest("[data-passage-id]") as HTMLElement | null;
+      if (!passageEl || !containerRef.current?.contains(passageEl)) {
+        setSelection(null);
+        return;
+      }
+
+      const passageId = passageEl.dataset.passageId;
+      if (!passageId) {
+        setSelection(null);
+        return;
+      }
+
+      setSelection({ passageId, type: "highlight" });
+    }
+
+    document.addEventListener("mouseup", handleSelection);
+    document.addEventListener("touchend", handleSelection);
+    return () => {
+      document.removeEventListener("mouseup", handleSelection);
+      document.removeEventListener("touchend", handleSelection);
+    };
+  }, []);
 
   const annotationsByPassage = useMemo(() => {
     const map = new Map<string, Annotation[]>();
@@ -77,8 +123,11 @@ export default function Reader({
 
   const draftCount = annotations.filter((a) => a.isDraft).length;
 
-  function openDraft(passageId: string) {
-    setDraft({ passageId, content: "" });
+  function beginAnnotation(type: AnnotationType) {
+    if (!selection) return;
+    setDraft({ passageId: selection.passageId, type, content: "" });
+    setSelection(null);
+    window.getSelection()?.removeAllRanges();
   }
 
   async function submitDraft() {
@@ -89,7 +138,7 @@ export default function Reader({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         passageId: draft.passageId,
-        type: "note",
+        type: draft.type,
         content: draft.content.trim(),
       }),
     });
@@ -135,6 +184,7 @@ export default function Reader({
 
   return (
     <div
+      ref={containerRef}
       style={{
         display: "flex",
         flexDirection: "column",
@@ -173,32 +223,19 @@ export default function Reader({
                 {chapterPassages.map((p) => {
                   const list = annotationsByPassage.get(p.id) ?? [];
                   return (
-                    <div key={p.id}>
+                    <div key={p.id} data-passage-id={p.id}>
                       <p
                         style={{
                           fontSize: "1rem",
                           lineHeight: 1.75,
                           color: "var(--nr-text)",
                           margin: 0,
+                          cursor: "text",
+                          userSelect: "text",
                         }}
                       >
                         {p.text}
                       </p>
-
-                      <button
-                        onClick={() => openDraft(p.id)}
-                        className="nr-link"
-                        style={{
-                          background: "transparent",
-                          border: "none",
-                          padding: 0,
-                          marginTop: "0.5rem",
-                          fontSize: "0.85rem",
-                          cursor: "pointer",
-                        }}
-                      >
-                        Add note
-                      </button>
 
                       {list.length > 0 && (
                         <div
@@ -253,10 +290,21 @@ export default function Reader({
                           className="nr-surface"
                           style={{ padding: "1rem", marginTop: "0.75rem" }}
                         >
+                          <div
+                            style={{
+                              fontSize: "0.7rem",
+                              color: "var(--nr-text-soft)",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.08em",
+                              marginBottom: "0.5rem",
+                            }}
+                          >
+                            {draft.type}
+                          </div>
                           <textarea
                             className="nr-input"
                             rows={3}
-                            placeholder="Write your note"
+                            placeholder="Write your thought"
                             value={draft.content}
                             onChange={(e) =>
                               setDraft({ ...draft, content: e.target.value })
@@ -283,7 +331,7 @@ export default function Reader({
                               className="nr-button"
                               style={{ width: "auto" }}
                             >
-                              Add note
+                              Add {draft.type}
                             </button>
                           </div>
                         </div>
@@ -296,6 +344,40 @@ export default function Reader({
           );
         })}
       </div>
+
+      {selection && (
+        <div
+          className="nr-surface"
+          style={{
+            position: "fixed",
+            bottom: "6rem",
+            left: "50%",
+            transform: "translateX(-50%)",
+            padding: "0.5rem",
+            display: "flex",
+            gap: "0.25rem",
+            zIndex: 50,
+          }}
+        >
+          {(["highlight", "note", "question", "interpretation"] as const).map(
+            (t) => (
+              <button
+                key={t}
+                onClick={() => beginAnnotation(t)}
+                className="nr-button"
+                style={{
+                  width: "auto",
+                  padding: "0.5rem 0.85rem",
+                  fontSize: "0.85rem",
+                  textTransform: "capitalize",
+                }}
+              >
+                {t}
+              </button>
+            )
+          )}
+        </div>
+      )}
 
       {saveBarOpen && (
         <div
