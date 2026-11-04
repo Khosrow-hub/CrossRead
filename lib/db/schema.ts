@@ -229,6 +229,38 @@ export const annotations = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// READING PROGRESS
+// ---------------------------------------------------------------------------
+
+export const readingProgress = pgTable(
+  "reading_progress",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    currentLocation: text("current_location"),
+    progressPercentage: integer("progress_percentage").notNull().default(0),
+    lastReadAt: timestamp("last_read_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    userProjectIdx: uniqueIndex("reading_progress_user_project_idx").on(
+      table.userId,
+      table.projectId
+    ),
+    lastReadIdx: index("reading_progress_last_read_idx").on(table.lastReadAt),
+  })
+);
+
+// ---------------------------------------------------------------------------
 // VERSIONS
 // ---------------------------------------------------------------------------
 
@@ -290,6 +322,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   annotations: many(annotations),
   versions: many(versions),
   sessions: many(sessions),
+  readingProgress: many(readingProgress),
 }));
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({
@@ -331,6 +364,7 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
   }),
   annotations: many(annotations),
   versions: many(versions),
+  readingProgress: many(readingProgress),
 }));
 
 export const annotationsRelations = relations(annotations, ({ one, many }) => ({
@@ -348,6 +382,20 @@ export const annotationsRelations = relations(annotations, ({ one, many }) => ({
   }),
   edits: many(versionEdits),
 }));
+
+export const readingProgressRelations = relations(
+  readingProgress,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [readingProgress.userId],
+      references: [users.id],
+    }),
+    project: one(projects, {
+      fields: [readingProgress.projectId],
+      references: [projects.id],
+    }),
+  })
+);
 
 export const versionsRelations = relations(versions, ({ one, many }) => ({
   project: one(projects, {
@@ -396,6 +444,9 @@ export type NewProject = typeof projects.$inferInsert;
 
 export type Annotation = typeof annotations.$inferSelect;
 export type NewAnnotation = typeof annotations.$inferInsert;
+
+export type ReadingProgress = typeof readingProgress.$inferSelect;
+export type NewReadingProgress = typeof readingProgress.$inferInsert;
 
 export type Version = typeof versions.$inferSelect;
 export type NewVersion = typeof versions.$inferInsert;

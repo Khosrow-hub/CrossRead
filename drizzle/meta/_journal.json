@@ -15,6 +15,13 @@
       "when": 1793741644360,
       "tag": "0001_fine_junta",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793808442595,
+      "tag": "0002_misty_leader",
+      "breakpoints": true
     }
   ]
 }
