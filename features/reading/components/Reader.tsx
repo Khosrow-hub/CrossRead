@@ -32,6 +32,7 @@ type ReaderProps = {
   chapters: Chapter[];
   passages: Passage[];
   initialAnnotations: Annotation[];
+  initialLocation: string | null;
 };
 
 type Draft = {
@@ -50,6 +51,7 @@ export default function Reader({
   chapters,
   passages,
   initialAnnotations,
+  initialLocation,
 }: ReaderProps) {
   const router = useRouter();
   const [annotations, setAnnotations] = useState<Annotation[]>(initialAnnotations);
@@ -60,17 +62,95 @@ export default function Reader({
   const [saveMessage, setSaveMessage] = useState("");
   const [saveBarOpen, setSaveBarOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const lastReportedChapterRef = useRef<string | null>(initialLocation);
+
+  useEffect(() => {
+    if (initialLocation) {
+      const el = document.querySelector(
+        `[data-chapter-title="${CSS.escape(initialLocation)}"]`
+      );
+      if (el) {
+        el.scrollIntoView({ behavior: "auto", block: "start" });
+      }
+    }
+  }, [initialLocation]);
 
   useEffect(() => {
     const firstChapter = chapters[0];
+    const startingLocation =
+      initialLocation ?? (firstChapter ? firstChapter.title : "Started reading");
     fetch(`/api/projects/${projectId}/progress`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        currentLocation: firstChapter ? firstChapter.title : "Started reading",
+        currentLocation: startingLocation,
         progressPercentage: 0,
       }),
     }).catch(() => {});
+  }, [projectId, chapters, initialLocation]);
+
+  useEffect(() => {
+    if (chapters.length === 0) return;
+
+    let observer: IntersectionObserver | null = null;
+    let cancelled = false;
+
+    const timer = setTimeout(() => {
+      if (cancelled) return;
+
+      const sections = document.querySelectorAll(
+        `[data-chapter-title]`
+      ) as NodeListOf<HTMLElement>;
+
+      if (sections.length === 0) return;
+
+      observer = new IntersectionObserver(
+        (entries) => {
+          const visible = entries.filter((e) => e.isIntersecting);
+          if (visible.length === 0) return;
+
+          visible.sort((a, b) => {
+            const posA = Number(
+              (a.target as HTMLElement).dataset.chapterPosition ?? "0"
+            );
+            const posB = Number(
+              (b.target as HTMLElement).dataset.chapterPosition ?? "0"
+            );
+            return posA - posB;
+          });
+
+          const topmost = visible[0].target as HTMLElement;
+          const title = topmost.dataset.chapterTitle ?? null;
+          if (!title || title === lastReportedChapterRef.current) return;
+
+          const idx = chapters.findIndex((c) => c.title === title);
+          const pct =
+            chapters.length > 0
+              ? Math.round(((idx + 1) / chapters.length) * 100)
+              : 0;
+
+          lastReportedChapterRef.current = title;
+
+          fetch(`/api/projects/${projectId}/progress`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              currentLocation: title,
+              progressPercentage: pct,
+            }),
+          }).catch(() => {});
+        },
+        { rootMargin: "-10% 0px -80% 0px", threshold: 0 }
+      );
+
+      sections.forEach((s) => observer!.observe(s));
+    }, 100);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      if (observer) observer.disconnect();
+    };
   }, [projectId, chapters]);
 
   useEffect(() => {
@@ -200,7 +280,12 @@ export default function Reader({
             (p) => p.chapterId === chapter.id
           );
           return (
-            <section key={chapter.id} style={{ marginBottom: "2rem" }}>
+            <section
+              key={chapter.id}
+              data-chapter-title={chapter.title}
+              data-chapter-position={chapter.position}
+              style={{ marginBottom: "2rem", scrollMarginTop: "2rem" }}
+            >
               <h2
                 style={{
                   fontSize: "1.1rem",

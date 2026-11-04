@@ -7,6 +7,7 @@ import {
   chapters,
   passages,
   annotations,
+  readingProgress,
 } from "@/lib/db/schema";
 import { requireUser } from "@/lib/auth/require-user";
 import Reader from "@/features/reading/components/Reader";
@@ -76,6 +77,19 @@ export default async function ReadPage({
     )
     .orderBy(asc(annotations.createdAt));
 
+  const progressRows = await db
+    .select({ currentLocation: readingProgress.currentLocation })
+    .from(readingProgress)
+    .where(
+      and(
+        eq(readingProgress.userId, user.id),
+        eq(readingProgress.projectId, projectId)
+      )
+    )
+    .limit(1);
+
+  const initialLocation = progressRows[0]?.currentLocation ?? null;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
       <div className="nr-surface" style={{ padding: "1.25rem 1.5rem" }}>
@@ -112,6 +126,7 @@ export default async function ReadPage({
           ...a,
           createdAt: a.createdAt.toISOString(),
         }))}
+        initialLocation={initialLocation}
       />
     </div>
   );

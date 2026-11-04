@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type Book = {
   id: string;
@@ -12,6 +12,9 @@ type Book = {
 
 export default function NewProjectPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const preselectedBookId = searchParams.get("bookId");
+
   const [books, setBooks] = useState<Book[]>([]);
   const [bookId, setBookId] = useState("");
   const [name, setName] = useState("");
@@ -24,13 +27,16 @@ export default function NewProjectPage() {
     fetch("/api/books")
       .then((res) => res.json())
       .then((data) => {
-        setBooks(data.books ?? []);
-        if (data.books && data.books.length > 0) {
-          setBookId(data.books[0].id);
+        const list: Book[] = data.books ?? [];
+        setBooks(list);
+        if (preselectedBookId && list.some((b) => b.id === preselectedBookId)) {
+          setBookId(preselectedBookId);
+        } else if (list.length > 0) {
+          setBookId(list[0].id);
         }
       })
       .catch(() => setError("Could not load books"));
-  }, []);
+  }, [preselectedBookId]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -63,11 +69,7 @@ export default function NewProjectPage() {
   return (
     <div
       className="nr-surface"
-      style={{
-        padding: "2rem",
-        maxWidth: "36rem",
-        margin: "0 auto",
-      }}
+      style={{ padding: "2rem", maxWidth: "36rem", margin: "0 auto" }}
     >
       <h1
         style={{
