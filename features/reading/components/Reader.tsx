@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type Chapter = {
@@ -50,6 +50,20 @@ export default function Reader({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState("");
   const [saveBarOpen, setSaveBarOpen] = useState(false);
+
+  useEffect(() => {
+    const firstChapter = chapters[0];
+    fetch(`/api/projects/${projectId}/progress`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        currentLocation: firstChapter ? firstChapter.title : "Started reading",
+        progressPercentage: 0,
+      }),
+    }).catch(() => {
+      // progress tracking is not critical; do not break the reader if it fails
+    });
+  }, [projectId, chapters]);
 
   const annotationsByPassage = useMemo(() => {
     const map = new Map<string, Annotation[]>();

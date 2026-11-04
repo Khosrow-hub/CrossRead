@@ -1,54 +1,52 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { eq, desc, count, sql } from "drizzle-orm";
+import { eq, desc, count } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   books,
-  chapters,
   projects,
   annotations,
   versions,
+  readingProgress,
 } from "@/lib/db/schema";
 import { requireUser } from "@/lib/auth/require-user";
+
+function timeAgo(date: Date): string {
+  const diff = Date.now() - date.getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} day${days === 1 ? "" : "s"} ago`;
+}
 
 export default async function LibraryPage() {
   const user = await requireUser();
 
-  // --- my projects ---
   const myProjects = await db
     .select({
       id: projects.id,
-      slug: projects.slug,
       name: projects.name,
       bookTitle: books.title,
-      bookAuthor: books.author,
-      visibility: projects.visibility,
     })
     .from(projects)
     .innerJoin(books, eq(projects.bookId, books.id))
     .where(eq(projects.ownerId, user.id))
     .orderBy(desc(projects.updatedAt))
-    .limit(5);
+    .limit(3);
 
-  // --- all books (for search, and for the main card when no project) ---
-  const allBooks = await db.select().from(books).orderBy(books.title);
-
-  // --- recent notes across my projects ---
   const recentNotes = await db
     .select({
       id: annotations.id,
       content: annotations.content,
-      type: annotations.type,
-      projectName: projects.name,
-      createdAt: annotations.createdAt,
     })
     .from(annotations)
     .innerJoin(projects, eq(annotations.projectId, projects.id))
     .where(eq(projects.ownerId, user.id))
     .orderBy(desc(annotations.createdAt))
-    .limit(5);
+    .limit(2);
 
-  // --- recent versions across my projects ---
   const recentVersions = await db
     .select({
       id: versions.id,
@@ -60,9 +58,8 @@ export default async function LibraryPage() {
     .innerJoin(projects, eq(versions.projectId, projects.id))
     .where(eq(projects.ownerId, user.id))
     .orderBy(desc(versions.createdAt))
-    .limit(5);
+    .limit(2);
 
-  // --- version count ---
   const versionCountResult = await db
     .select({ value: count() })
     .from(versions)
@@ -70,8 +67,36 @@ export default async function LibraryPage() {
     .where(eq(projects.ownerId, user.id));
   const versionCount = versionCountResult[0]?.value ?? 0;
 
-  // --- current reading: most recently updated project ---
-  const currentProject = myProjects[0] ?? null;
+  const progressRows = await db
+    .select({
+      projectId: readingProgress.projectId,
+      projectName: projects.name,
+      bookTitle: books.title,
+      bookAuthor: books.author,
+      bookCover: books.coverUrl,
+      currentLocation: readingProgress.currentLocation,
+      progressPercentage: readingProgress.progressPercentage,
+      lastReadAt: readingProgress.lastReadAt,
+    })
+    .from(readingProgress)
+    .innerJoin(projects, eq(readingProgress.projectId, projects.id))
+    .innerJoin(books, eq(projects.bookId, books.id))
+    .where(eq(readingProgress.userId, user.id))
+    .orderBy(desc(readingProgress.lastReadAt))
+    .limit(1);
+
+  const current = progressRows[0] ?? null;
+
+  let latestVersion: { message: string; createdAt: Date } | null = null;
+  if (current) {
+    const versionRows = await db
+      .select({ message: versions.message, createdAt: versions.createdAt })
+      .from(versions)
+      .where(eq(versions.projectId, current.projectId))
+      .orderBy(desc(versions.createdAt))
+      .limit(1);
+    latestVersion = versionRows[0] ?? null;
+  }
 
   return (
     <div
@@ -83,7 +108,7 @@ export default async function LibraryPage() {
         gap: "1.25rem",
       }}
     >
-      {/* TOP: search bar */}
+      {/* SEARCH */}
       <div
         style={{
           gridColumn: "1 / 4",
@@ -107,12 +132,7 @@ export default async function LibraryPage() {
             gap: "0.5rem",
           }}
         >
-          <span
-            style={{
-              color: "var(--nr-text-soft)",
-              fontSize: "0.9rem",
-            }}
-          >
+          <span style={{ color: "var(--nr-text-soft)", fontSize: "0.9rem" }}>
             ⌕
           </span>
           <input
@@ -131,81 +151,182 @@ export default async function LibraryPage() {
         </form>
       </div>
 
-      {/* MAIN CARD: current reading or start */}
+      {/* CONTINUE READING */}
       <div
         className="nr-surface"
         style={{
           gridColumn: "1 / 4",
           gridRow: "2 / 4",
-          position: "relative",
+          padding: "2rem",
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          padding: "2rem",
           minHeight: "26rem",
+          position: "relative",
         }}
       >
-        {currentProject ? (
-          <>
-            <div>
+        {current ? (
+          <div
+            style={{
+              display: "flex",
+              gap: "2rem",
+              alignItems: "flex-start",
+              height: "100%",
+              flexWrap: "wrap",
+            }}
+          >
+            <div
+              className="nr-inset"
+              style={{
+                width: "10rem",
+                height: "14rem",
+                borderRadius: "1rem",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "3rem",
+                fontWeight: 700,
+                color: "var(--nr-text-soft)",
+                flexShrink: 0,
+              }}
+            >
+              {current.bookTitle.charAt(0)}
+            </div>
+
+            <div style={{ flex: 1, minWidth: "16rem" }}>
               <div
                 style={{
                   fontSize: "0.75rem",
                   color: "var(--nr-text-soft)",
                   textTransform: "uppercase",
                   letterSpacing: "0.08em",
-                  marginBottom: "0.75rem",
+                  marginBottom: "0.5rem",
                 }}
               >
                 Continue reading
               </div>
               <h1
                 style={{
-                  fontSize: "2rem",
+                  fontSize: "1.9rem",
                   fontWeight: 700,
                   color: "var(--nr-text)",
-                  marginBottom: "0.35rem",
+                  marginBottom: "0.25rem",
                 }}
               >
-                {currentProject.bookTitle}
+                {current.bookTitle}
               </h1>
               <div
                 style={{
                   fontSize: "1rem",
                   color: "var(--nr-text-soft)",
+                  marginBottom: "1.25rem",
                 }}
               >
-                {currentProject.bookAuthor}
+                {current.bookAuthor}
               </div>
-            </div>
 
-            <div
-              style={{
-                display: "flex",
-                gap: "0.75rem",
-                alignItems: "flex-end",
-                justifyContent: "space-between",
-              }}
-            >
-              <Link
-                href={`/projects/${currentProject.id}/read`}
-                className="nr-button"
-                style={{ width: "auto", textDecoration: "none" }}
+              <div style={{ marginBottom: "0.4rem", fontSize: "0.85rem" }}>
+                <span style={{ color: "var(--nr-text-soft)" }}>Progress </span>
+                <span style={{ fontWeight: 700, color: "var(--nr-text)" }}>
+                  {current.progressPercentage}%
+                </span>
+              </div>
+              <div
+                className="nr-inset"
+                style={{
+                  width: "100%",
+                  height: "0.6rem",
+                  borderRadius: "0.3rem",
+                  overflow: "hidden",
+                  marginBottom: "1rem",
+                }}
               >
-                Open project
-              </Link>
+                <div
+                  style={{
+                    width: `${current.progressPercentage}%`,
+                    height: "100%",
+                    background: "var(--nr-accent)",
+                    borderRadius: "0.3rem",
+                  }}
+                />
+              </div>
+
               <div
                 style={{
-                  fontSize: "0.8rem",
+                  fontSize: "0.85rem",
                   color: "var(--nr-text-soft)",
+                  marginBottom: "0.35rem",
                 }}
               >
-                {recentNotes.length} recent notes
+                Current location:{" "}
+                <span style={{ color: "var(--nr-text)" }}>
+                  {current.currentLocation ?? "Not yet placed"}
+                </span>
+              </div>
+              <div
+                style={{
+                  fontSize: "0.85rem",
+                  color: "var(--nr-text-soft)",
+                  marginBottom: "0.35rem",
+                }}
+              >
+                Last read:{" "}
+                <span style={{ color: "var(--nr-text)" }}>
+                  {timeAgo(current.lastReadAt)}
+                </span>
+              </div>
+              {latestVersion && (
+                <div
+                  style={{
+                    fontSize: "0.85rem",
+                    color: "var(--nr-text-soft)",
+                    marginBottom: "1rem",
+                  }}
+                >
+                  Latest version:{" "}
+                  <span style={{ color: "var(--nr-text)" }}>
+                    {latestVersion.message}
+                  </span>
+                </div>
+              )}
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: "0.75rem",
+                  alignItems: "center",
+                  marginTop: "1rem",
+                  flexWrap: "wrap",
+                }}
+              >
+                <Link
+                  href={`/projects/${current.projectId}/read`}
+                  className="nr-button"
+                  style={{ width: "auto", textDecoration: "none" }}
+                >
+                  Continue reading
+                </Link>
+                <Link
+                  href={`/projects/${current.projectId}/versions`}
+                  className="nr-link"
+                  style={{ fontSize: "0.9rem" }}
+                >
+                  View reading history
+                </Link>
               </div>
             </div>
-          </>
+          </div>
         ) : (
-          <>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "flex-start",
+              height: "100%",
+              gap: "1.25rem",
+            }}
+          >
             <div>
               <div
                 style={{
@@ -213,52 +334,42 @@ export default async function LibraryPage() {
                   color: "var(--nr-text-soft)",
                   textTransform: "uppercase",
                   letterSpacing: "0.08em",
-                  marginBottom: "0.75rem",
+                  marginBottom: "0.5rem",
                 }}
               >
                 Start reading
               </div>
               <h1
                 style={{
-                  fontSize: "2rem",
+                  fontSize: "1.9rem",
                   fontWeight: 700,
                   color: "var(--nr-text)",
-                  marginBottom: "0.35rem",
+                  marginBottom: "0.5rem",
                 }}
               >
-                Pick a book
+                Your next reading journey starts here
               </h1>
-              <div
+              <p
                 style={{
-                  fontSize: "1rem",
+                  fontSize: "0.95rem",
                   color: "var(--nr-text-soft)",
                   maxWidth: "32rem",
                 }}
               >
-                Start a reading project from the catalog. Every project keeps
-                your notes, highlights, and versions in one place.
-              </div>
+                Explore books, start a reading project, and build on each
+                other&apos;s interpretations.
+              </p>
             </div>
-
-            <div
-              style={{
-                display: "flex",
-                gap: "0.75rem",
-                alignItems: "center",
-              }}
+            <Link
+              href="/books"
+              className="nr-button"
+              style={{ width: "auto", textDecoration: "none" }}
             >
-              <Link
-                href="/books"
-                className="nr-button"
-                style={{ width: "auto", textDecoration: "none" }}
-              >
-                Browse books
-              </Link>
-            </div>
-          </>
+              Explore books
+            </Link>
+          </div>
         )}
 
-        {/* plus pill bottom left */}
         <Link
           href="/projects/new"
           className="nr-surface-sm"
@@ -281,13 +392,13 @@ export default async function LibraryPage() {
         </Link>
       </div>
 
-      {/* RIGHT COLUMN 1: your projects */}
+      {/* YOUR PROJECTS */}
       <RightCard gridRow="1 / 2" title="Your projects">
         {myProjects.length === 0 ? (
           <EmptyText>No projects yet</EmptyText>
         ) : (
           <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-            {myProjects.slice(0, 3).map((p) => (
+            {myProjects.map((p) => (
               <li key={p.id} style={{ marginBottom: "0.55rem" }}>
                 <Link
                   href={`/projects/${p.id}`}
@@ -314,13 +425,13 @@ export default async function LibraryPage() {
         )}
       </RightCard>
 
-      {/* RIGHT COLUMN 2: recent versions */}
+      {/* RECENT VERSIONS */}
       <RightCard gridRow="2 / 3" title="Recent versions">
         {recentVersions.length === 0 ? (
           <EmptyText>No versions yet</EmptyText>
         ) : (
           <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-            {recentVersions.slice(0, 2).map((v) => (
+            {recentVersions.map((v) => (
               <li key={v.id} style={{ marginBottom: "0.55rem" }}>
                 <div
                   style={{
@@ -337,7 +448,7 @@ export default async function LibraryPage() {
                     color: "var(--nr-text-soft)",
                   }}
                 >
-                  {v.projectName}
+                  {v.projectName} · {timeAgo(v.createdAt)}
                 </div>
               </li>
             ))}
@@ -345,12 +456,12 @@ export default async function LibraryPage() {
         )}
       </RightCard>
 
-      {/* RIGHT COLUMN 3 (highlighted): suggestions */}
+      {/* SUGGESTIONS */}
       <RightCard gridRow="3 / 4" title="Suggestions" highlighted>
         <EmptyText>No suggestions yet</EmptyText>
       </RightCard>
 
-      {/* BOTTOM CENTER: recent notes */}
+      {/* RECENT NOTES */}
       <div
         className="nr-surface"
         style={{
@@ -375,7 +486,7 @@ export default async function LibraryPage() {
           <EmptyText>No notes yet</EmptyText>
         ) : (
           <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-            {recentNotes.slice(0, 2).map((n) => (
+            {recentNotes.map((n) => (
               <li
                 key={n.id}
                 style={{
@@ -395,7 +506,7 @@ export default async function LibraryPage() {
         )}
       </div>
 
-      {/* BOTTOM RIGHT: paper stack with count */}
+      {/* VERSIONS SAVED */}
       <div
         className="nr-surface"
         style={{
@@ -469,10 +580,6 @@ export default async function LibraryPage() {
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// helpers
-// ---------------------------------------------------------------------------
 
 function RightCard({
   children,
