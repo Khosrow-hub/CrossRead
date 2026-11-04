@@ -8,14 +8,14 @@ services:
       POSTGRES_PASSWORD: crossread_dev
       POSTGRES_DB: crossread
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5434:5432"
     volumes:
       - crossread_pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U crossread"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+    command: >
+      postgres
+      -c ssl=off
+      -c listen_addresses=*
+      -c max_connections=100
 
 volumes:
   crossread_pgdata:

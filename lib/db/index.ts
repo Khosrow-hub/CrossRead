@@ -7,24 +7,27 @@ if (!process.env.DATABASE_URL) {
 }
 
 function createPool() {
-  const pool = new Pool({
+  return new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: undefined,
     max: 5,
-    idleTimeoutMillis: 5_000,
+    idleTimeoutMillis: 0,
     connectionTimeoutMillis: 10_000,
   });
-
-  pool.on("error", (err) => {
-    console.error("[db] idle client error", err.message);
-  });
-
-  return pool;
 }
 
-export const pool =
-  process.env.NODE_ENV === "production"
-    ? (globalThis as unknown as { pool?: Pool }).pool ??= createPool()
-    : createPool();
+const isProd = process.env.NODE_ENV === "production";
+
+const globalForDb = globalThis as unknown as { pool?: Pool };
+
+export const pool: Pool = isProd
+  ? (globalForDb.pool ??= createPool())
+  : createPool();
+
+pool.on("error", (err) => {
+  if (isProd) {
+    console.error("[db] idle client error", err.message);
+  }
+});
 
 export const db = drizzle(pool, { schema });
