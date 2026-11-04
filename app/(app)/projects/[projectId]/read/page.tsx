@@ -65,6 +65,7 @@ export default async function ReadPage({
       type: annotations.type,
       content: annotations.content,
       createdAt: annotations.createdAt,
+      isDraft: annotations.isDraft,
     })
     .from(annotations)
     .where(
@@ -77,12 +78,7 @@ export default async function ReadPage({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-      <div
-        className="nr-surface"
-        style={{
-          padding: "1.25rem 1.5rem",
-        }}
-      >
+      <div className="nr-surface" style={{ padding: "1.25rem 1.5rem" }}>
         <div
           style={{
             fontSize: "0.75rem",

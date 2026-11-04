@@ -212,6 +212,7 @@ export const annotations = pgTable(
     type: annotationTypeEnum("type").notNull(),
     content: text("content").notNull(),
     isDeleted: boolean("is_deleted").notNull().default(false),
+    isDraft: boolean("is_draft").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

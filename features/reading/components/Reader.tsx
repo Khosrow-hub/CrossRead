@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 type Chapter = {
   id: string;
@@ -21,6 +22,7 @@ type Annotation = {
   type: "highlight" | "note" | "question" | "interpretation";
   content: string;
   createdAt: string;
+  isDraft: boolean;
 };
 
 type ReaderProps = {
@@ -30,11 +32,10 @@ type ReaderProps = {
   initialAnnotations: Annotation[];
 };
 
-type DraftState = {
+type Draft = {
   passageId: string;
-  type: "highlight" | "note" | "question" | "interpretation";
   content: string;
-} | null;
+};
 
 export default function Reader({
   projectId,
@@ -42,10 +43,13 @@ export default function Reader({
   passages,
   initialAnnotations,
 }: ReaderProps) {
+  const router = useRouter();
   const [annotations, setAnnotations] = useState<Annotation[]>(initialAnnotations);
-  const [draft, setDraft] = useState<DraftState>(null);
+  const [draft, setDraft] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveMessage, setSaveMessage] = useState("");
+  const [saveBarOpen, setSaveBarOpen] = useState(false);
 
   const annotationsByPassage = useMemo(() => {
     const map = new Map<string, Annotation[]>();
@@ -57,45 +61,74 @@ export default function Reader({
     return map;
   }, [annotations]);
 
-  function openDraft(passageId: string, type: DraftState extends null ? never : "note") {
-    setDraft({ passageId, type, content: "" });
+  const draftCount = annotations.filter((a) => a.isDraft).length;
+
+  function openDraft(passageId: string) {
+    setDraft({ passageId, content: "" });
   }
 
   async function submitDraft() {
     if (!draft || draft.content.trim().length === 0) return;
+
+    const res = await fetch(`/api/projects/${projectId}/annotations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        passageId: draft.passageId,
+        type: "note",
+        content: draft.content.trim(),
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      setSaveError(data.error || "Could not save note");
+      return;
+    }
+
+    setAnnotations((prev) => [...prev, data.annotation]);
+    setDraft(null);
+  }
+
+  async function handleSaveChanges() {
     setSaving(true);
-    setError(null);
+    setSaveError(null);
 
     try {
-      const res = await fetch(`/api/projects/${projectId}/annotations`, {
+      const res = await fetch(`/api/projects/${projectId}/save`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          passageId: draft.passageId,
-          type: draft.type,
-          content: draft.content.trim(),
-        }),
+        body: JSON.stringify({ message: saveMessage }),
       });
 
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "Could not save note");
+        setSaveError(data.error || "Could not save changes");
         setSaving(false);
         return;
       }
 
-      setAnnotations((prev) => [...prev, data.annotation]);
-      setDraft(null);
+      setAnnotations((prev) => prev.map((a) => ({ ...a, isDraft: false })));
+      setSaveMessage("");
+      setSaveBarOpen(false);
       setSaving(false);
+      router.refresh();
     } catch {
-      setError("Could not save note");
+      setSaveError("Could not save changes");
       setSaving(false);
     }
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-      {error && <div className="nr-error">{error}</div>}
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "1.25rem",
+        paddingBottom: "6rem",
+      }}
+    >
+      {saveError && <div className="nr-error">{saveError}</div>}
 
       <div className="nr-surface" style={{ padding: "2rem" }}>
         {chapters.map((chapter) => {
@@ -116,7 +149,13 @@ export default function Reader({
               >
                 {chapter.title}
               </h2>
-              <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "1.5rem",
+                }}
+              >
                 {chapterPassages.map((p) => {
                   const list = annotationsByPassage.get(p.id) ?? [];
                   return (
@@ -133,7 +172,7 @@ export default function Reader({
                       </p>
 
                       <button
-                        onClick={() => openDraft(p.id, "note")}
+                        onClick={() => openDraft(p.id)}
                         className="nr-link"
                         style={{
                           background: "transparent",
@@ -173,9 +212,21 @@ export default function Reader({
                                   textTransform: "uppercase",
                                   letterSpacing: "0.08em",
                                   marginBottom: "0.3rem",
+                                  display: "flex",
+                                  justifyContent: "space-between",
                                 }}
                               >
-                                {a.type}
+                                <span>{a.type}</span>
+                                {a.isDraft && (
+                                  <span
+                                    style={{
+                                      color: "var(--nr-accent)",
+                                      fontWeight: 700,
+                                    }}
+                                  >
+                                    Unsaved
+                                  </span>
+                                )}
                               </div>
                               {a.content}
                             </div>
@@ -210,7 +261,6 @@ export default function Reader({
                               onClick={() => setDraft(null)}
                               className="nr-button"
                               style={{ width: "auto" }}
-                              disabled={saving}
                             >
                               Cancel
                             </button>
@@ -218,9 +268,8 @@ export default function Reader({
                               onClick={submitDraft}
                               className="nr-button"
                               style={{ width: "auto" }}
-                              disabled={saving}
                             >
-                              {saving ? "Saving" : "Save note"}
+                              Add note
                             </button>
                           </div>
                         </div>
@@ -232,6 +281,90 @@ export default function Reader({
             </section>
           );
         })}
+      </div>
+
+      {saveBarOpen && (
+        <div
+          className="nr-surface"
+          style={{
+            position: "fixed",
+            bottom: "1.5rem",
+            right: "1.5rem",
+            width: "22rem",
+            padding: "1.25rem",
+            zIndex: 40,
+          }}
+        >
+          <div
+            style={{
+              fontSize: "0.85rem",
+              fontWeight: 700,
+              color: "var(--nr-text)",
+              marginBottom: "0.75rem",
+            }}
+          >
+            Save {draftCount} change{draftCount === 1 ? "" : "s"} as a version
+          </div>
+          <input
+            type="text"
+            className="nr-input"
+            placeholder="Optional message"
+            value={saveMessage}
+            onChange={(e) => setSaveMessage(e.target.value)}
+            maxLength={200}
+          />
+          <div
+            style={{
+              display: "flex",
+              gap: "0.5rem",
+              marginTop: "0.75rem",
+              justifyContent: "flex-end",
+            }}
+          >
+            <button
+              onClick={() => setSaveBarOpen(false)}
+              className="nr-button"
+              style={{ width: "auto" }}
+              disabled={saving}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSaveChanges}
+              className="nr-button"
+              style={{ width: "auto" }}
+              disabled={saving}
+            >
+              {saving ? "Saving" : "Save"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div
+        style={{
+          position: "fixed",
+          bottom: "1.5rem",
+          left: "50%",
+          transform: "translateX(-50%)",
+          zIndex: 30,
+        }}
+      >
+        <button
+          onClick={() => setSaveBarOpen(true)}
+          disabled={draftCount === 0 || saving}
+          className="nr-button"
+          style={{
+            width: "auto",
+            paddingLeft: "1.5rem",
+            paddingRight: "1.5rem",
+            opacity: draftCount === 0 ? 0.55 : 1,
+          }}
+        >
+          {draftCount === 0
+            ? "No changes to save"
+            : `Save changes (${draftCount})`}
+        </button>
       </div>
     </div>
   );

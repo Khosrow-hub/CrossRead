@@ -1,0 +1,1 @@
+ALTER TABLE "annotations" ADD COLUMN "is_draft" boolean DEFAULT true NOT NULL;
