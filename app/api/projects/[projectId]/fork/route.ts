@@ -77,7 +77,7 @@ export async function POST(
       bookId: source.bookId,
       name: `${source.name} copy`,
       description: source.description,
-      visibility: "private",
+      visibility: source.visibility,
       forkedFromId: source.id,
     })
     .returning({ id: projects.id });

@@ -52,7 +52,12 @@ export default async function ProjectOverviewPage({
   const canView = project.visibility === "public" || isOwner;
   if (!canView) notFound();
 
-  let parentInfo: { id: string; name: string; ownerDisplayName: string | null; ownerUsername: string } | null = null;
+  let parentInfo: {
+    id: string;
+    name: string;
+    ownerDisplayName: string | null;
+    ownerUsername: string;
+  } | null = null;
   if (project.forkedFromId) {
     const parentRows = await db
       .select({
@@ -67,6 +72,24 @@ export default async function ProjectOverviewPage({
       .limit(1);
     parentInfo = parentRows[0] ?? null;
   }
+
+  const forks = await db
+    .select({
+      id: projects.id,
+      name: projects.name,
+      ownerDisplayName: users.displayName,
+      ownerUsername: users.username,
+      createdAt: projects.createdAt,
+      visibility: projects.visibility,
+    })
+    .from(projects)
+    .innerJoin(users, eq(projects.ownerId, users.id))
+    .where(eq(projects.forkedFromId, projectId))
+    .orderBy(desc(projects.createdAt));
+
+  const visibleForks = forks.filter(
+    (f) => f.visibility === "public" || f.ownerUsername === user.username
+  );
 
   const chapterRows = await db
     .select({ id: chapters.id })
@@ -235,7 +258,55 @@ export default async function ProjectOverviewPage({
         <StatCard label="Chapters" value={chapterCount} />
         <StatCard label="Notes" value={annotationCount} />
         <StatCard label="Versions" value={versionCount} />
+        <StatCard label="Continuing from this" value={visibleForks.length} />
       </div>
+
+      {visibleForks.length > 0 && (
+        <div className="nr-surface" style={{ padding: "2rem" }}>
+          <div
+            style={{
+              fontSize: "0.75rem",
+              color: "var(--nr-text-soft)",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              marginBottom: "1rem",
+            }}
+          >
+            Readers who built on this
+          </div>
+          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+            {visibleForks.map((f) => (
+              <li
+                key={f.id}
+                className="nr-surface-sm"
+                style={{ padding: "1rem 1.25rem", marginBottom: "0.75rem" }}
+              >
+                <Link
+                  href={`/projects/${f.id}`}
+                  style={{
+                    fontSize: "1rem",
+                    fontWeight: 700,
+                    color: "var(--nr-text)",
+                    textDecoration: "none",
+                  }}
+                >
+                  {f.name}
+                </Link>
+                <div
+                  style={{
+                    fontSize: "0.85rem",
+                    color: "var(--nr-text-soft)",
+                    marginTop: "0.2rem",
+                  }}
+                >
+                  by {f.ownerDisplayName ?? f.ownerUsername} ·{" "}
+                  {f.createdAt.toLocaleDateString()}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="nr-surface" style={{ padding: "2rem" }}>
         <div
