@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { eq, desc, count } from "drizzle-orm";
+import { eq, desc, count, and } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   books,
@@ -7,6 +7,7 @@ import {
   annotations,
   versions,
   readingProgress,
+  suggestions,
 } from "@/lib/db/schema";
 import { requireUser } from "@/lib/auth/require-user";
 
@@ -67,6 +68,18 @@ export default async function LibraryPage() {
     .where(eq(projects.ownerId, user.id));
   const versionCount = versionCountResult[0]?.value ?? 0;
 
+  const suggestionsCountResult = await db
+    .select({ value: count() })
+    .from(suggestions)
+    .innerJoin(projects, eq(suggestions.targetProjectId, projects.id))
+    .where(
+      and(
+        eq(projects.ownerId, user.id),
+        eq(suggestions.status, "open")
+      )
+    );
+  const openSuggestionCount = suggestionsCountResult[0]?.value ?? 0;
+
   const progressRows = await db
     .select({
       projectId: readingProgress.projectId,
@@ -108,7 +121,6 @@ export default async function LibraryPage() {
         gap: "1.25rem",
       }}
     >
-      {/* SEARCH */}
       <div
         style={{
           gridColumn: "1 / 4",
@@ -151,7 +163,6 @@ export default async function LibraryPage() {
         </form>
       </div>
 
-      {/* CONTINUE READING */}
       <div
         className="nr-surface"
         style={{
@@ -392,7 +403,6 @@ export default async function LibraryPage() {
         </Link>
       </div>
 
-      {/* YOUR PROJECTS */}
       <RightCard gridRow="1 / 2" title="Your projects">
         {myProjects.length === 0 ? (
           <EmptyText>No projects yet</EmptyText>
@@ -425,7 +435,6 @@ export default async function LibraryPage() {
         )}
       </RightCard>
 
-      {/* RECENT VERSIONS */}
       <RightCard gridRow="2 / 3" title="Recent versions">
         {recentVersions.length === 0 ? (
           <EmptyText>No versions yet</EmptyText>
@@ -456,12 +465,34 @@ export default async function LibraryPage() {
         )}
       </RightCard>
 
-      {/* SUGGESTIONS */}
       <RightCard gridRow="3 / 4" title="Suggestions" highlighted>
-        <EmptyText>No suggestions yet</EmptyText>
+        {openSuggestionCount === 0 ? (
+          <EmptyText>No suggestions yet</EmptyText>
+        ) : (
+          <div>
+            <div
+              style={{
+                fontSize: "1.75rem",
+                fontWeight: 700,
+                color: "var(--nr-text)",
+                marginBottom: "0.25rem",
+              }}
+            >
+              {openSuggestionCount}
+            </div>
+            <div
+              style={{
+                fontSize: "0.8rem",
+                color: "var(--nr-text-soft)",
+              }}
+            >
+              Open suggestion{openSuggestionCount === 1 ? "" : "s"} waiting for
+              your review
+            </div>
+          </div>
+        )}
       </RightCard>
 
-      {/* RECENT NOTES */}
       <div
         className="nr-surface"
         style={{
@@ -506,7 +537,6 @@ export default async function LibraryPage() {
         )}
       </div>
 
-      {/* VERSIONS SAVED */}
       <div
         className="nr-surface"
         style={{
