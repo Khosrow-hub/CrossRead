@@ -1,0 +1,3 @@
+ALTER TABLE "annotations" ADD COLUMN "forked_from_annotation_id" uuid;--> statement-breakpoint
+ALTER TABLE "annotations" ADD CONSTRAINT "annotations_forked_from_annotation_id_annotations_id_fk" FOREIGN KEY ("forked_from_annotation_id") REFERENCES "public"."annotations"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "annotations_forked_from_annotation_idx" ON "annotations" USING btree ("forked_from_annotation_id");

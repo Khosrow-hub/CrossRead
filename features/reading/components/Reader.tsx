@@ -25,10 +25,13 @@ type Annotation = {
   content: string;
   createdAt: string;
   isDraft: boolean;
+  authorId: string;
 };
 
 type ReaderProps = {
   projectId: string;
+  forkedFromId: string | null;
+  currentUserId: string;
   chapters: Chapter[];
   passages: Passage[];
   initialAnnotations: Annotation[];
@@ -46,8 +49,17 @@ type SelectionInfo = {
   type: AnnotationType;
 };
 
+type SuggestState = {
+  annotationId: string;
+  originalContent: string;
+  proposedContent: string;
+  note: string;
+} | null;
+
 export default function Reader({
   projectId,
+  forkedFromId,
+  currentUserId,
   chapters,
   passages,
   initialAnnotations,
@@ -61,6 +73,10 @@ export default function Reader({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState("");
   const [saveBarOpen, setSaveBarOpen] = useState(false);
+  const [suggest, setSuggest] = useState<SuggestState>(null);
+  const [suggestSaving, setSuggestSaving] = useState(false);
+  const [suggestError, setSuggestError] = useState<string | null>(null);
+  const [suggestSuccess, setSuggestSuccess] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const lastReportedChapterRef = useRef<string | null>(initialLocation);
 
@@ -91,24 +107,20 @@ export default function Reader({
 
   useEffect(() => {
     if (chapters.length === 0) return;
-
     let observer: IntersectionObserver | null = null;
     let cancelled = false;
 
     const timer = setTimeout(() => {
       if (cancelled) return;
-
       const sections = document.querySelectorAll(
         `[data-chapter-title]`
       ) as NodeListOf<HTMLElement>;
-
       if (sections.length === 0) return;
 
       observer = new IntersectionObserver(
         (entries) => {
           const visible = entries.filter((e) => e.isIntersecting);
           if (visible.length === 0) return;
-
           visible.sort((a, b) => {
             const posA = Number(
               (a.target as HTMLElement).dataset.chapterPosition ?? "0"
@@ -118,7 +130,6 @@ export default function Reader({
             );
             return posA - posB;
           });
-
           const topmost = visible[0].target as HTMLElement;
           const title = topmost.dataset.chapterTitle ?? null;
           if (!title || title === lastReportedChapterRef.current) return;
@@ -128,7 +139,6 @@ export default function Reader({
             chapters.length > 0
               ? Math.round(((idx + 1) / chapters.length) * 100)
               : 0;
-
           lastReportedChapterRef.current = title;
 
           fetch(`/api/projects/${projectId}/progress`, {
@@ -160,26 +170,22 @@ export default function Reader({
         setSelection(null);
         return;
       }
-
       const range = sel.getRangeAt(0);
       const node = range.startContainer.parentElement;
       if (!node) {
         setSelection(null);
         return;
       }
-
       const passageEl = node.closest("[data-passage-id]") as HTMLElement | null;
       if (!passageEl || !containerRef.current?.contains(passageEl)) {
         setSelection(null);
         return;
       }
-
       const passageId = passageEl.dataset.passageId;
       if (!passageId) {
         setSelection(null);
         return;
       }
-
       setSelection({ passageId, type: "highlight" });
     }
 
@@ -236,21 +242,18 @@ export default function Reader({
   async function handleSaveChanges() {
     setSaving(true);
     setSaveError(null);
-
     try {
       const res = await fetch(`/api/projects/${projectId}/save`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: saveMessage }),
       });
-
       const data = await res.json();
       if (!res.ok) {
         setSaveError(data.error || "Could not save changes");
         setSaving(false);
         return;
       }
-
       setAnnotations((prev) => prev.map((a) => ({ ...a, isDraft: false })));
       setSaveMessage("");
       setSaveBarOpen(false);
@@ -261,6 +264,43 @@ export default function Reader({
       setSaving(false);
     }
   }
+
+  async function submitSuggestion() {
+    if (!suggest) return;
+    if (suggest.proposedContent.trim().length === 0) {
+      setSuggestError("Write your proposed version");
+      return;
+    }
+    setSuggestSaving(true);
+    setSuggestError(null);
+
+    try {
+      const res = await fetch(`/api/projects/${projectId}/suggestions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targetAnnotationId: suggest.annotationId,
+          proposedContent: suggest.proposedContent.trim(),
+          note: suggest.note.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setSuggestError(data.error || "Could not send suggestion");
+        setSuggestSaving(false);
+        return;
+      }
+      setSuggest(null);
+      setSuggestSaving(false);
+      setSuggestSuccess("Suggestion sent");
+      setTimeout(() => setSuggestSuccess(null), 3000);
+    } catch {
+      setSuggestError("Could not send suggestion");
+      setSuggestSaving(false);
+    }
+  }
+
+  const canSuggest = forkedFromId !== null;
 
   return (
     <div
@@ -273,6 +313,18 @@ export default function Reader({
       }}
     >
       {saveError && <div className="nr-error">{saveError}</div>}
+      {suggestSuccess && (
+        <div
+          className="nr-inset"
+          style={{
+            padding: "0.75rem 1rem",
+            fontSize: "0.9rem",
+            color: "var(--nr-text)",
+          }}
+        >
+          {suggestSuccess}
+        </div>
+      )}
 
       <div className="nr-surface" style={{ padding: "2rem" }}>
         {chapters.map((chapter) => {
@@ -331,42 +383,69 @@ export default function Reader({
                             gap: "0.5rem",
                           }}
                         >
-                          {list.map((a) => (
-                            <div
-                              key={a.id}
-                              className="nr-inset"
-                              style={{
-                                padding: "0.75rem 1rem",
-                                fontSize: "0.9rem",
-                                color: "var(--nr-text)",
-                              }}
-                            >
+                          {list.map((a) => {
+                            const isOwn = a.authorId === currentUserId;
+                            return (
                               <div
+                                key={a.id}
+                                className="nr-inset"
                                 style={{
-                                  fontSize: "0.7rem",
-                                  color: "var(--nr-text-soft)",
-                                  textTransform: "uppercase",
-                                  letterSpacing: "0.08em",
-                                  marginBottom: "0.3rem",
-                                  display: "flex",
-                                  justifyContent: "space-between",
+                                  padding: "0.75rem 1rem",
+                                  fontSize: "0.9rem",
+                                  color: "var(--nr-text)",
                                 }}
                               >
-                                <span>{a.type}</span>
-                                {a.isDraft && (
-                                  <span
-                                    style={{
-                                      color: "var(--nr-accent)",
-                                      fontWeight: 700,
-                                    }}
-                                  >
-                                    Unsaved
-                                  </span>
+                                <div
+                                  style={{
+                                    fontSize: "0.7rem",
+                                    color: "var(--nr-text-soft)",
+                                    textTransform: "uppercase",
+                                    letterSpacing: "0.08em",
+                                    marginBottom: "0.3rem",
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                  }}
+                                >
+                                  <span>{a.type}</span>
+                                  {a.isDraft && (
+                                    <span
+                                      style={{
+                                        color: "var(--nr-accent)",
+                                        fontWeight: 700,
+                                      }}
+                                    >
+                                      Unsaved
+                                    </span>
+                                  )}
+                                </div>
+                                {a.content}
+                                {!isOwn && canSuggest && (
+                                  <div style={{ marginTop: "0.5rem" }}>
+                                    <button
+                                      onClick={() =>
+                                        setSuggest({
+                                          annotationId: a.id,
+                                          originalContent: a.content,
+                                          proposedContent: a.content,
+                                          note: "",
+                                        })
+                                      }
+                                      className="nr-link"
+                                      style={{
+                                        background: "transparent",
+                                        border: "none",
+                                        padding: 0,
+                                        fontSize: "0.8rem",
+                                        cursor: "pointer",
+                                      }}
+                                    >
+                                      Suggest an edit
+                                    </button>
+                                  </div>
                                 )}
                               </div>
-                              {a.content}
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
 
@@ -461,6 +540,126 @@ export default function Reader({
               </button>
             )
           )}
+        </div>
+      )}
+
+      {suggest && (
+        <div
+          className="nr-surface"
+          style={{
+            position: "fixed",
+            bottom: "1.5rem",
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: "30rem",
+            maxWidth: "calc(100vw - 2rem)",
+            padding: "1.25rem",
+            zIndex: 60,
+          }}
+        >
+          <div
+            style={{
+              fontSize: "0.85rem",
+              fontWeight: 700,
+              color: "var(--nr-text)",
+              marginBottom: "0.75rem",
+            }}
+          >
+            Suggest an edit
+          </div>
+          <div
+            style={{
+              fontSize: "0.75rem",
+              color: "var(--nr-text-soft)",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              marginBottom: "0.3rem",
+            }}
+          >
+            Their version
+          </div>
+          <div
+            className="nr-inset"
+            style={{
+              padding: "0.75rem 1rem",
+              fontSize: "0.85rem",
+              color: "var(--nr-text-soft)",
+              marginBottom: "0.9rem",
+            }}
+          >
+            {suggest.originalContent}
+          </div>
+          <div
+            style={{
+              fontSize: "0.75rem",
+              color: "var(--nr-text-soft)",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              marginBottom: "0.3rem",
+            }}
+          >
+            Your version
+          </div>
+          <textarea
+            className="nr-input"
+            rows={4}
+            value={suggest.proposedContent}
+            onChange={(e) =>
+              setSuggest({ ...suggest, proposedContent: e.target.value })
+            }
+          />
+          <div
+            style={{
+              fontSize: "0.75rem",
+              color: "var(--nr-text-soft)",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              marginBottom: "0.3rem",
+              marginTop: "0.75rem",
+            }}
+          >
+            Why (optional)
+          </div>
+          <input
+            type="text"
+            className="nr-input"
+            value={suggest.note}
+            onChange={(e) => setSuggest({ ...suggest, note: e.target.value })}
+            maxLength={1000}
+          />
+          {suggestError && (
+            <div className="nr-error" style={{ marginTop: "0.75rem" }}>
+              {suggestError}
+            </div>
+          )}
+          <div
+            style={{
+              display: "flex",
+              gap: "0.5rem",
+              marginTop: "0.9rem",
+              justifyContent: "flex-end",
+            }}
+          >
+            <button
+              onClick={() => {
+                setSuggest(null);
+                setSuggestError(null);
+              }}
+              className="nr-button"
+              style={{ width: "auto" }}
+              disabled={suggestSaving}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={submitSuggestion}
+              className="nr-button"
+              style={{ width: "auto" }}
+              disabled={suggestSaving}
+            >
+              {suggestSaving ? "Sending" : "Send suggestion"}
+            </button>
+          </div>
         </div>
       )}
 

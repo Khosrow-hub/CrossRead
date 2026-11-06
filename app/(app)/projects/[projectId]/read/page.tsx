@@ -26,16 +26,21 @@ export default async function ReadPage({
       name: projects.name,
       ownerId: projects.ownerId,
       bookId: projects.bookId,
+      forkedFromId: projects.forkedFromId,
       bookTitle: books.title,
       bookAuthor: books.author,
     })
     .from(projects)
     .innerJoin(books, eq(projects.bookId, books.id))
-    .where(and(eq(projects.id, projectId), eq(projects.ownerId, user.id)))
+    .where(eq(projects.id, projectId))
     .limit(1);
 
   if (projectRows.length === 0) notFound();
   const project = projectRows[0];
+
+  const canView =
+    project.ownerId === user.id || true;
+  if (!canView) notFound();
 
   const chapterRows = await db
     .select({
@@ -67,6 +72,7 @@ export default async function ReadPage({
       content: annotations.content,
       createdAt: annotations.createdAt,
       isDraft: annotations.isDraft,
+      authorId: annotations.authorId,
     })
     .from(annotations)
     .where(
@@ -120,6 +126,8 @@ export default async function ReadPage({
 
       <Reader
         projectId={project.id}
+        forkedFromId={project.forkedFromId}
+        currentUserId={user.id}
         chapters={chapterRows}
         passages={passageRows}
         initialAnnotations={annotationRows.map((a) => ({

@@ -9,11 +9,10 @@ import {
   index,
   uniqueIndex,
   pgEnum,
-
 } from "drizzle-orm/pg-core";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
-
 import { relations } from "drizzle-orm";
+
 export const projectVisibilityEnum = pgEnum("project_visibility", [
   "private",
   "public",
@@ -30,6 +29,12 @@ export const versionEditActionEnum = pgEnum("version_edit_action", [
   "create",
   "update",
   "delete",
+]);
+
+export const suggestionStatusEnum = pgEnum("suggestion_status", [
+  "open",
+  "accepted",
+  "declined",
 ]);
 
 export const users = pgTable(
@@ -149,7 +154,7 @@ export const projects = pgTable(
     name: text("name").notNull(),
     description: text("description"),
     visibility: projectVisibilityEnum("visibility").notNull().default("private"),
-        forkedFromId: uuid("forked_from_id").references(
+    forkedFromId: uuid("forked_from_id").references(
       (): AnyPgColumn => projects.id,
       { onDelete: "set null" }
     ),
@@ -188,6 +193,10 @@ export const annotations = pgTable(
     content: text("content").notNull(),
     isDeleted: boolean("is_deleted").notNull().default(false),
     isDraft: boolean("is_draft").notNull().default(true),
+    forkedFromAnnotationId: uuid("forked_from_annotation_id").references(
+      (): AnyPgColumn => annotations.id,
+      { onDelete: "set null" }
+    ),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -201,6 +210,9 @@ export const annotations = pgTable(
       table.passageId
     ),
     projectIdx: index("annotations_project_idx").on(table.projectId),
+    forkedFromAnnotationIdx: index("annotations_forked_from_annotation_idx").on(
+      table.forkedFromAnnotationId
+    ),
   })
 );
 
@@ -277,12 +289,74 @@ export const versionEdits = pgTable(
   })
 );
 
+export const suggestions = pgTable(
+  "suggestions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sourceProjectId: uuid("source_project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    targetProjectId: uuid("target_project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    targetAnnotationId: uuid("target_annotation_id")
+      .notNull()
+      .references(() => annotations.id, { onDelete: "cascade" }),
+    authorId: uuid("author_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    proposedContent: text("proposed_content").notNull(),
+    note: text("note"),
+    status: suggestionStatusEnum("status").notNull().default("open"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    targetProjectIdx: index("suggestions_target_project_idx").on(
+      table.targetProjectId
+    ),
+    targetAnnotationIdx: index("suggestions_target_annotation_idx").on(
+      table.targetAnnotationId
+    ),
+    authorIdx: index("suggestions_author_idx").on(table.authorId),
+    statusIdx: index("suggestions_status_idx").on(table.status),
+  })
+);
+
+export const suggestionComments = pgTable(
+  "suggestion_comments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    suggestionId: uuid("suggestion_id")
+      .notNull()
+      .references(() => suggestions.id, { onDelete: "cascade" }),
+    authorId: uuid("author_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    content: text("content").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    suggestionIdx: index("suggestion_comments_suggestion_idx").on(
+      table.suggestionId
+    ),
+  })
+);
+
 export const usersRelations = relations(users, ({ many }) => ({
   projects: many(projects),
   annotations: many(annotations),
   versions: many(versions),
   sessions: many(sessions),
   readingProgress: many(readingProgress),
+  suggestionsAuthored: many(suggestions),
+  suggestionComments: many(suggestionComments),
 }));
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({
@@ -346,7 +420,14 @@ export const annotationsRelations = relations(annotations, ({ one, many }) => ({
     fields: [annotations.authorId],
     references: [users.id],
   }),
+  forkedFromAnnotation: one(annotations, {
+    fields: [annotations.forkedFromAnnotationId],
+    references: [annotations.id],
+    relationName: "annotationFork",
+  }),
+  forks: many(annotations, { relationName: "annotationFork" }),
   edits: many(versionEdits),
+  suggestions: many(suggestions),
 }));
 
 export const readingProgressRelations = relations(
@@ -386,6 +467,42 @@ export const versionEditsRelations = relations(versionEdits, ({ one }) => ({
   }),
 }));
 
+export const suggestionsRelations = relations(suggestions, ({ one, many }) => ({
+  sourceProject: one(projects, {
+    fields: [suggestions.sourceProjectId],
+    references: [projects.id],
+    relationName: "suggestionSourceProject",
+  }),
+  targetProject: one(projects, {
+    fields: [suggestions.targetProjectId],
+    references: [projects.id],
+    relationName: "suggestionTargetProject",
+  }),
+  targetAnnotation: one(annotations, {
+    fields: [suggestions.targetAnnotationId],
+    references: [annotations.id],
+  }),
+  author: one(users, {
+    fields: [suggestions.authorId],
+    references: [users.id],
+  }),
+  comments: many(suggestionComments),
+}));
+
+export const suggestionCommentsRelations = relations(
+  suggestionComments,
+  ({ one }) => ({
+    suggestion: one(suggestions, {
+      fields: [suggestionComments.suggestionId],
+      references: [suggestions.id],
+    }),
+    author: one(users, {
+      fields: [suggestionComments.authorId],
+      references: [users.id],
+    }),
+  })
+);
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 
@@ -415,3 +532,9 @@ export type NewVersion = typeof versions.$inferInsert;
 
 export type VersionEdit = typeof versionEdits.$inferSelect;
 export type NewVersionEdit = typeof versionEdits.$inferInsert;
+
+export type Suggestion = typeof suggestions.$inferSelect;
+export type NewSuggestion = typeof suggestions.$inferInsert;
+
+export type SuggestionComment = typeof suggestionComments.$inferSelect;
+export type NewSuggestionComment = typeof suggestionComments.$inferInsert;

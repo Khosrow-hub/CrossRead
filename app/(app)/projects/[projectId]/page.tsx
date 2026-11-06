@@ -9,9 +9,11 @@ import {
   annotations,
   versions,
   users,
+  suggestions,
 } from "@/lib/db/schema";
 import { requireUser } from "@/lib/auth/require-user";
 import { ForkButton } from "@/features/projects/components/ForkButton";
+import { SuggestionsPanel } from "@/features/suggestions/components/SuggestionsPanel";
 
 export default async function ProjectOverviewPage({
   params,
@@ -125,6 +127,52 @@ export default async function ProjectOverviewPage({
     .orderBy(desc(versions.createdAt))
     .limit(1);
   const latestVersion = latestVersionRows[0] ?? null;
+
+  let pendingSuggestions: {
+    id: string;
+    proposedContent: string;
+    note: string | null;
+    originalContent: string;
+    annotationType: string;
+    authorUsername: string;
+    authorDisplayName: string | null;
+    createdAt: string;
+  }[] = [];
+
+  if (isOwner) {
+    const suggestionRows = await db
+      .select({
+        id: suggestions.id,
+        proposedContent: suggestions.proposedContent,
+        note: suggestions.note,
+        originalContent: annotations.content,
+        annotationType: annotations.type,
+        authorUsername: users.username,
+        authorDisplayName: users.displayName,
+        createdAt: suggestions.createdAt,
+      })
+      .from(suggestions)
+      .innerJoin(annotations, eq(suggestions.targetAnnotationId, annotations.id))
+      .innerJoin(users, eq(suggestions.authorId, users.id))
+      .where(
+        and(
+          eq(suggestions.targetProjectId, projectId),
+          eq(suggestions.status, "open")
+        )
+      )
+      .orderBy(desc(suggestions.createdAt));
+
+    pendingSuggestions = suggestionRows.map((s) => ({
+      id: s.id,
+      proposedContent: s.proposedContent,
+      note: s.note,
+      originalContent: s.originalContent,
+      annotationType: s.annotationType,
+      authorUsername: s.authorUsername,
+      authorDisplayName: s.authorDisplayName,
+      createdAt: s.createdAt.toISOString(),
+    }));
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
@@ -259,7 +307,14 @@ export default async function ProjectOverviewPage({
         <StatCard label="Notes" value={annotationCount} />
         <StatCard label="Versions" value={versionCount} />
         <StatCard label="Continuing from this" value={visibleForks.length} />
+        {isOwner && (
+          <StatCard label="Open suggestions" value={pendingSuggestions.length} />
+        )}
       </div>
+
+      {isOwner && pendingSuggestions.length > 0 && (
+        <SuggestionsPanel suggestions={pendingSuggestions} />
+      )}
 
       {visibleForks.length > 0 && (
         <div className="nr-surface" style={{ padding: "2rem" }}>

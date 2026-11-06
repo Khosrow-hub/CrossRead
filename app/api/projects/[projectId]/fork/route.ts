@@ -102,6 +102,7 @@ export async function POST(
         content: a.content,
         isDeleted: false,
         isDraft: false,
+        forkedFromAnnotationId: a.forkedFromAnnotationId ?? a.id,
       }))
     );
   }
