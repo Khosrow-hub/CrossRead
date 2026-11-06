@@ -8,8 +8,10 @@ import {
   chapters,
   annotations,
   versions,
+  users,
 } from "@/lib/db/schema";
 import { requireUser } from "@/lib/auth/require-user";
+import { ForkButton } from "@/features/projects/components/ForkButton";
 
 export default async function ProjectOverviewPage({
   params,
@@ -27,6 +29,10 @@ export default async function ProjectOverviewPage({
       visibility: projects.visibility,
       createdAt: projects.createdAt,
       updatedAt: projects.updatedAt,
+      ownerId: projects.ownerId,
+      ownerUsername: users.username,
+      ownerDisplayName: users.displayName,
+      forkedFromId: projects.forkedFromId,
       bookId: books.id,
       bookSlug: books.slug,
       bookTitle: books.title,
@@ -35,11 +41,32 @@ export default async function ProjectOverviewPage({
     })
     .from(projects)
     .innerJoin(books, eq(projects.bookId, books.id))
-    .where(and(eq(projects.id, projectId), eq(projects.ownerId, user.id)))
+    .innerJoin(users, eq(projects.ownerId, users.id))
+    .where(eq(projects.id, projectId))
     .limit(1);
 
   if (projectRows.length === 0) notFound();
   const project = projectRows[0];
+
+  const isOwner = project.ownerId === user.id;
+  const canView = project.visibility === "public" || isOwner;
+  if (!canView) notFound();
+
+  let parentInfo: { id: string; name: string; ownerDisplayName: string | null; ownerUsername: string } | null = null;
+  if (project.forkedFromId) {
+    const parentRows = await db
+      .select({
+        id: projects.id,
+        name: projects.name,
+        ownerDisplayName: users.displayName,
+        ownerUsername: users.username,
+      })
+      .from(projects)
+      .innerJoin(users, eq(projects.ownerId, users.id))
+      .where(eq(projects.id, project.forkedFromId))
+      .limit(1);
+    parentInfo = parentRows[0] ?? null;
+  }
 
   const chapterRows = await db
     .select({ id: chapters.id })
@@ -114,7 +141,7 @@ export default async function ProjectOverviewPage({
                 marginBottom: "0.4rem",
               }}
             >
-              Reading project
+              Reading project by {project.ownerDisplayName ?? project.ownerUsername}
             </div>
             <h1
               style={{
@@ -126,6 +153,25 @@ export default async function ProjectOverviewPage({
             >
               {project.name}
             </h1>
+            {parentInfo && (
+              <div
+                style={{
+                  fontSize: "0.85rem",
+                  color: "var(--nr-text-soft)",
+                  marginBottom: "0.5rem",
+                }}
+              >
+                A version of{" "}
+                <Link
+                  href={`/projects/${parentInfo.id}`}
+                  className="nr-link"
+                  style={{ fontSize: "0.85rem" }}
+                >
+                  {parentInfo.name}
+                </Link>{" "}
+                by {parentInfo.ownerDisplayName ?? parentInfo.ownerUsername}
+              </div>
+            )}
             <div
               style={{
                 fontSize: "1rem",
@@ -148,20 +194,25 @@ export default async function ProjectOverviewPage({
               </p>
             )}
             <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-              <Link
-                href={`/projects/${project.id}/read`}
-                className="nr-button"
-                style={{ width: "auto", textDecoration: "none" }}
-              >
-                Open reader
-              </Link>
-              <Link
-                href={`/projects/${project.id}/versions`}
-                className="nr-button"
-                style={{ width: "auto", textDecoration: "none" }}
-              >
-                Reading history
-              </Link>
+              {isOwner && (
+                <>
+                  <Link
+                    href={`/projects/${project.id}/read`}
+                    className="nr-button"
+                    style={{ width: "auto", textDecoration: "none" }}
+                  >
+                    Open reader
+                  </Link>
+                  <Link
+                    href={`/projects/${project.id}/versions`}
+                    className="nr-button"
+                    style={{ width: "auto", textDecoration: "none" }}
+                  >
+                    Reading history
+                  </Link>
+                </>
+              )}
+              {!isOwner && <ForkButton projectId={project.id} />}
               <Link
                 href={`/books/${project.bookSlug}`}
                 className="nr-link"
@@ -230,8 +281,7 @@ export default async function ProjectOverviewPage({
           </Link>
         ) : (
           <p style={{ color: "var(--nr-text-soft)", fontSize: "0.9rem" }}>
-            No versions saved yet. Open the reader and press save changes to
-            create the first one.
+            No versions saved yet.
           </p>
         )}
       </div>

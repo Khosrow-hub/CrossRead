@@ -9,13 +9,11 @@ import {
   index,
   uniqueIndex,
   pgEnum,
+
 } from "drizzle-orm/pg-core";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
+
 import { relations } from "drizzle-orm";
-
-// ---------------------------------------------------------------------------
-// ENUMS
-// ---------------------------------------------------------------------------
-
 export const projectVisibilityEnum = pgEnum("project_visibility", [
   "private",
   "public",
@@ -33,10 +31,6 @@ export const versionEditActionEnum = pgEnum("version_edit_action", [
   "update",
   "delete",
 ]);
-
-// ---------------------------------------------------------------------------
-// USERS
-// ---------------------------------------------------------------------------
 
 export const users = pgTable(
   "users",
@@ -61,10 +55,6 @@ export const users = pgTable(
   })
 );
 
-// ---------------------------------------------------------------------------
-// SESSIONS
-// ---------------------------------------------------------------------------
-
 export const sessions = pgTable(
   "sessions",
   {
@@ -81,10 +71,6 @@ export const sessions = pgTable(
     userIdIdx: index("sessions_user_id_idx").on(table.userId),
   })
 );
-
-// ---------------------------------------------------------------------------
-// BOOKS
-// ---------------------------------------------------------------------------
 
 export const books = pgTable(
   "books",
@@ -107,10 +93,6 @@ export const books = pgTable(
   })
 );
 
-// ---------------------------------------------------------------------------
-// CHAPTERS
-// ---------------------------------------------------------------------------
-
 export const chapters = pgTable(
   "chapters",
   {
@@ -131,10 +113,6 @@ export const chapters = pgTable(
     ),
   })
 );
-
-// ---------------------------------------------------------------------------
-// PASSAGES
-// ---------------------------------------------------------------------------
 
 export const passages = pgTable(
   "passages",
@@ -157,10 +135,6 @@ export const passages = pgTable(
   })
 );
 
-// ---------------------------------------------------------------------------
-// PROJECTS
-// ---------------------------------------------------------------------------
-
 export const projects = pgTable(
   "projects",
   {
@@ -175,6 +149,10 @@ export const projects = pgTable(
     name: text("name").notNull(),
     description: text("description"),
     visibility: projectVisibilityEnum("visibility").notNull().default("private"),
+        forkedFromId: uuid("forked_from_id").references(
+      (): AnyPgColumn => projects.id,
+      { onDelete: "set null" }
+    ),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -189,12 +167,9 @@ export const projects = pgTable(
     ),
     bookIdx: index("projects_book_idx").on(table.bookId),
     visibilityIdx: index("projects_visibility_idx").on(table.visibility),
+    forkedFromIdx: index("projects_forked_from_idx").on(table.forkedFromId),
   })
 );
-
-// ---------------------------------------------------------------------------
-// ANNOTATIONS
-// ---------------------------------------------------------------------------
 
 export const annotations = pgTable(
   "annotations",
@@ -229,10 +204,6 @@ export const annotations = pgTable(
   })
 );
 
-// ---------------------------------------------------------------------------
-// READING PROGRESS
-// ---------------------------------------------------------------------------
-
 export const readingProgress = pgTable(
   "reading_progress",
   {
@@ -261,10 +232,6 @@ export const readingProgress = pgTable(
   })
 );
 
-// ---------------------------------------------------------------------------
-// VERSIONS
-// ---------------------------------------------------------------------------
-
 export const versions = pgTable(
   "versions",
   {
@@ -288,10 +255,6 @@ export const versions = pgTable(
   })
 );
 
-// ---------------------------------------------------------------------------
-// VERSION EDITS
-// ---------------------------------------------------------------------------
-
 export const versionEdits = pgTable(
   "version_edits",
   {
@@ -313,10 +276,6 @@ export const versionEdits = pgTable(
     versionIdx: index("version_edits_version_idx").on(table.versionId),
   })
 );
-
-// ---------------------------------------------------------------------------
-// RELATIONS
-// ---------------------------------------------------------------------------
 
 export const usersRelations = relations(users, ({ many }) => ({
   projects: many(projects),
@@ -363,6 +322,12 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
     fields: [projects.bookId],
     references: [books.id],
   }),
+  forkedFrom: one(projects, {
+    fields: [projects.forkedFromId],
+    references: [projects.id],
+    relationName: "forkedFrom",
+  }),
+  forks: many(projects, { relationName: "forkedFrom" }),
   annotations: many(annotations),
   versions: many(versions),
   readingProgress: many(readingProgress),
@@ -420,10 +385,6 @@ export const versionEditsRelations = relations(versionEdits, ({ one }) => ({
     references: [annotations.id],
   }),
 }));
-
-// ---------------------------------------------------------------------------
-// TYPES
-// ---------------------------------------------------------------------------
 
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
