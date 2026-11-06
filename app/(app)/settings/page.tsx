@@ -30,6 +30,7 @@ export default async function SettingsPage() {
         <SettingsForm
           initialDisplayName={user.displayName ?? ""}
           initialBio={user.bio ?? ""}
+          initialAvatarUrl={user.avatarUrl ?? ""}
         />
       </div>
 
