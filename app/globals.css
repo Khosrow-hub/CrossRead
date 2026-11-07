@@ -165,3 +165,8 @@ body {
     margin-bottom: 1rem;
   }
 }
+@media (max-width: 900px) {
+  body {
+    padding-bottom: 5rem;
+  }
+}

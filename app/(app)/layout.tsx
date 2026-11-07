@@ -30,6 +30,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           username={user.username}
           email={user.email}
           displayName={user.displayName ?? user.username}
+          avatarUrl={user.avatarUrl}
         />
         <div
           style={{

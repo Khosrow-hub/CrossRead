@@ -5,26 +5,51 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 const items = [
-  { href: "/library", label: "Library" },
-  { href: "/books", label: "Books" },
-  { href: "/projects", label: "Projects" },
-  { href: "/projects/versions", label: "Versions" },
-  { href: "/settings", label: "Settings" },
+  { href: "/library", label: "Library", icon: "M" },
+  { href: "/books", label: "Books", icon: "B" },
+  { href: "/projects", label: "Projects", icon: "P" },
+  { href: "/projects/versions", label: "Versions", icon: "V" },
+  { href: "/settings", label: "Settings", icon: "S" },
 ];
+
+function isActive(pathname: string, href: string): boolean {
+  if (href === "/library") return pathname === "/library";
+  if (href === "/projects") {
+    return (
+      pathname === "/projects" ||
+      (pathname.startsWith("/projects/") &&
+        !pathname.startsWith("/projects/versions") &&
+        !pathname.includes("/versions"))
+    );
+  }
+  return pathname === href || pathname.startsWith(href + "/");
+}
 
 export function Rail({
   username,
   email,
   displayName,
+  avatarUrl,
 }: {
   username: string;
   email: string;
   displayName: string;
+  avatarUrl: string | null;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function update() {
+      setIsMobile(window.innerWidth < 900);
+    }
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -44,14 +69,126 @@ export function Rail({
     router.refresh();
   }
 
+  if (isMobile) {
+    return (
+      <>
+        <div
+          style={{
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            zIndex: 100,
+            display: "flex",
+            justifyContent: "space-around",
+            alignItems: "stretch",
+            padding: "0.4rem 0.25rem calc(0.4rem + env(safe-area-inset-bottom))",
+            background: "var(--nr-surface)",
+            boxShadow:
+              "0 -6px 20px rgba(0,0,0,0.08), 0 -1px 0 var(--nr-shadow-dark)",
+          }}
+        >
+          {items.map((item) => {
+            const active = isActive(pathname, item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "0.2rem",
+                  padding: "0.4rem 0",
+                  textDecoration: "none",
+                  color: active ? "var(--nr-accent)" : "var(--nr-text-soft)",
+                  fontSize: "0.65rem",
+                  fontWeight: active ? 700 : 500,
+                }}
+              >
+                <div
+                  className={active ? "nr-inset" : ""}
+                  style={{
+                    width: "2rem",
+                    height: "2rem",
+                    borderRadius: "0.5rem",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "0.9rem",
+                    fontWeight: 700,
+                  }}
+                >
+                  {item.icon}
+                </div>
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+          <button
+            onClick={() => router.push("/settings")}
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.2rem",
+              padding: "0.4rem 0",
+              background: "transparent",
+              border: "none",
+              color: "var(--nr-text-soft)",
+              fontSize: "0.65rem",
+              cursor: "pointer",
+            }}
+          >
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt=""
+                style={{
+                  width: "2rem",
+                  height: "2rem",
+                  borderRadius: "50%",
+                  objectFit: "cover",
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: "2rem",
+                  height: "2rem",
+                  borderRadius: "50%",
+                  background: "var(--nr-surface)",
+                  boxShadow:
+                    "-2px -2px 4px var(--nr-shadow-light), 2px 2px 4px var(--nr-shadow-dark)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: 700,
+                  color: "var(--nr-text)",
+                }}
+              >
+                {displayName.charAt(0).toUpperCase()}
+              </div>
+            )}
+            <span>Me</span>
+          </button>
+        </div>
+      </>
+    );
+  }
+
   return (
     <div
       className="nr-surface"
       style={{
-        width: "5rem",
+        width: "7.5rem",
         display: "flex",
         flexDirection: "column",
-        alignItems: "center",
+        alignItems: "stretch",
         padding: "1rem 0.5rem",
         gap: "1rem",
         flexShrink: 0,
@@ -61,52 +198,84 @@ export function Rail({
         href="/library"
         className="nr-inset"
         style={{
-          width: "2.25rem",
-          height: "2.25rem",
+          height: "2.5rem",
           borderRadius: "0.75rem",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: "1rem",
+          gap: "0.4rem",
+          fontSize: "0.9rem",
           fontWeight: 700,
           color: "var(--nr-text)",
           textDecoration: "none",
         }}
       >
-        C
+        <span>C</span>
+        <span
+          style={{
+            fontSize: "0.85rem",
+            letterSpacing: "-0.01em",
+          }}
+        >
+          CrossRead
+        </span>
       </Link>
 
       <div
         className="nr-inset"
         style={{
           flex: 1,
-          width: "2.5rem",
-          borderRadius: "1.25rem",
+          borderRadius: "1rem",
           display: "flex",
           flexDirection: "column",
-          alignItems: "center",
-          gap: "0.75rem",
-          padding: "1rem 0",
+          alignItems: "stretch",
+          gap: "0.35rem",
+          padding: "0.6rem 0.35rem",
         }}
       >
         {items.map((item) => {
-          const active = pathname === item.href || (item.href !== "/library" && pathname.startsWith(item.href + "/"));
+          const active = isActive(pathname, item.href);
           return (
             <Link
               key={item.href}
               href={item.href}
-              title={item.label}
               style={{
-                width: "0.85rem",
-                height: "0.85rem",
-                borderRadius: "0.3rem",
-                background: active ? "var(--nr-accent)" : "var(--nr-surface)",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                padding: "0.55rem 0.6rem",
+                borderRadius: "0.6rem",
+                textDecoration: "none",
+                background: active ? "var(--nr-surface)" : "transparent",
                 boxShadow: active
-                  ? "inset 2px 2px 4px var(--nr-shadow-dark), inset -2px -2px 4px var(--nr-shadow-light)"
-                  : "-2px -2px 4px var(--nr-shadow-light), 2px 2px 4px var(--nr-shadow-dark)",
+                  ? "-3px -3px 8px var(--nr-shadow-light), 3px 3px 8px var(--nr-shadow-dark)"
+                  : "none",
+                color: active ? "var(--nr-accent)" : "var(--nr-text-soft)",
+                fontSize: "0.8rem",
+                fontWeight: active ? 700 : 500,
                 transition: "all 120ms ease",
               }}
-            />
+            >
+              <span
+                style={{
+                  width: "1.5rem",
+                  height: "1.5rem",
+                  borderRadius: "0.4rem",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "0.75rem",
+                  fontWeight: 700,
+                  background: active
+                    ? "var(--nr-bg)"
+                    : "var(--nr-surface)",
+                  color: active ? "var(--nr-accent)" : "var(--nr-text-soft)",
+                }}
+              >
+                {item.icon}
+              </span>
+              {item.label}
+            </Link>
           );
         })}
       </div>
@@ -116,18 +285,63 @@ export function Rail({
           onClick={() => setMenuOpen((v) => !v)}
           className="nr-surface-sm"
           style={{
-            width: "2.25rem",
-            height: "2.25rem",
-            borderRadius: "50%",
+            width: "100%",
+            height: "2.75rem",
+            borderRadius: "0.75rem",
             border: "none",
             cursor: "pointer",
             color: "var(--nr-text)",
-            fontWeight: 700,
-            fontSize: "0.9rem",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            padding: "0 0.4rem",
+            background: "var(--nr-surface)",
           }}
           title={displayName}
         >
-          {displayName.charAt(0).toUpperCase()}
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt=""
+              style={{
+                width: "1.9rem",
+                height: "1.9rem",
+                borderRadius: "50%",
+                objectFit: "cover",
+                flexShrink: 0,
+              }}
+            />
+          ) : (
+            <span
+              style={{
+                width: "1.9rem",
+                height: "1.9rem",
+                borderRadius: "50%",
+                background: "var(--nr-surface)",
+                boxShadow:
+                  "-2px -2px 4px var(--nr-shadow-light), 2px 2px 4px var(--nr-shadow-dark)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 700,
+                fontSize: "0.8rem",
+                flexShrink: 0,
+              }}
+            >
+              {displayName.charAt(0).toUpperCase()}
+            </span>
+          )}
+          <span
+            style={{
+              fontSize: "0.75rem",
+              fontWeight: 600,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {displayName}
+          </span>
         </button>
 
         {menuOpen && (
@@ -135,7 +349,7 @@ export function Rail({
             className="nr-surface"
             style={{
               position: "absolute",
-              bottom: "2.75rem",
+              bottom: "3.25rem",
               left: "0",
               padding: "0.9rem 1rem",
               width: "15rem",
