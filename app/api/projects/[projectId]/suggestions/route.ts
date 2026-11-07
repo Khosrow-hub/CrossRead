@@ -6,6 +6,7 @@ import {
   suggestions,
   annotations,
   projects,
+  notifications,
 } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/auth/session";
 
@@ -122,6 +123,25 @@ export async function POST(
         status: "open",
       })
       .returning({ id: suggestions.id });
+
+    const targetProjectRows = await db
+      .select({ ownerId: projects.ownerId })
+      .from(projects)
+      .where(eq(projects.id, original.projectId))
+      .limit(1);
+
+    if (
+      targetProjectRows.length > 0 &&
+      targetProjectRows[0].ownerId !== user.id
+    ) {
+      await db.insert(notifications).values({
+        userId: targetProjectRows[0].ownerId,
+        actorId: user.id,
+        type: "suggestion_received",
+        projectId: original.projectId,
+        suggestionId: created.id,
+      });
+    }
 
     return NextResponse.json({ suggestion: created }, { status: 201 });
   } catch {

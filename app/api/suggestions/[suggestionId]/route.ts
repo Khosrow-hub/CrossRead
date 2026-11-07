@@ -8,6 +8,7 @@ import {
   projects,
   versions,
   versionEdits,
+  notifications,
 } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/auth/session";
 
@@ -33,7 +34,10 @@ export async function PATCH(
     .limit(1);
 
   if (suggestionRows.length === 0) {
-    return NextResponse.json({ error: "Suggestion not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Suggestion not found" },
+      { status: 404 }
+    );
   }
 
   const suggestion = suggestionRows[0];
@@ -45,7 +49,10 @@ export async function PATCH(
     .limit(1);
 
   if (targetRows.length === 0) {
-    return NextResponse.json({ error: "Target project not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Target project not found" },
+      { status: 404 }
+    );
   }
 
   const target = targetRows[0];
@@ -85,6 +92,16 @@ export async function PATCH(
       .set({ status: "declined", updatedAt: new Date() })
       .where(eq(suggestions.id, suggestionId));
 
+    if (suggestion.authorId !== user.id) {
+      await db.insert(notifications).values({
+        userId: suggestion.authorId,
+        actorId: user.id,
+        type: "suggestion_declined",
+        projectId: target.id,
+        suggestionId: suggestion.id,
+      });
+    }
+
     return NextResponse.json({ ok: true, status: "declined" });
   }
 
@@ -95,7 +112,10 @@ export async function PATCH(
     .limit(1);
 
   if (annotationRows.length === 0) {
-    return NextResponse.json({ error: "Annotation not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Annotation not found" },
+      { status: 404 }
+    );
   }
 
   const annotation = annotationRows[0];
@@ -137,6 +157,16 @@ export async function PATCH(
     .update(suggestions)
     .set({ status: "accepted", updatedAt: new Date() })
     .where(eq(suggestions.id, suggestionId));
+
+  if (suggestion.authorId !== user.id) {
+    await db.insert(notifications).values({
+      userId: suggestion.authorId,
+      actorId: user.id,
+      type: "suggestion_accepted",
+      projectId: target.id,
+      suggestionId: suggestion.id,
+    });
+  }
 
   return NextResponse.json({ ok: true, status: "accepted" });
 }

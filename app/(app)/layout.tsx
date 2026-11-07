@@ -24,6 +24,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           padding: "1.25rem",
           display: "flex",
           gap: "1.25rem",
+          minHeight: "calc(100vh - 4rem)",
         }}
       >
         <Rail

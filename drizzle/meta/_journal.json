@@ -50,6 +50,13 @@
       "when": 1793989897837,
       "tag": "0006_lyrical_thor",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794081164073,
+      "tag": "0007_square_black_bird",
+      "breakpoints": true
     }
   ]
 }

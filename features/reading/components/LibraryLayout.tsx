@@ -29,21 +29,22 @@ type Props = {
 };
 
 export function LibraryLayout(props: Props) {
-  const [isMobile, setIsMobile] = useState(false);
+  const [mode, setMode] = useState<"mobile" | "tablet" | "desktop">("desktop");
 
   useEffect(() => {
     function update() {
-      setIsMobile(window.innerWidth < 900);
+      const w = window.innerWidth;
+      if (w < 900) setMode("mobile");
+      else if (w < 1280) setMode("tablet");
+      else setMode("desktop");
     }
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
   }, []);
 
-  if (isMobile) {
-    return <MobileLayout {...props} />;
-  }
-
+  if (mode === "mobile") return <MobileLayout {...props} />;
+  if (mode === "tablet") return <TabletLayout {...props} />;
   return <DesktopLayout {...props} />;
 }
 
@@ -88,13 +89,15 @@ function SearchBar() {
 
 function ContinueReadingCard({
   current,
-  coverSize,
-  stack,
+  layout,
 }: {
   current: Current;
-  coverSize: { width: string; height: string };
-  stack: boolean;
+  layout: "row" | "stack";
 }) {
+  const isStack = layout === "stack";
+  const coverW = isStack ? "7rem" : "9rem";
+  const coverH = isStack ? "9.5rem" : "12.5rem";
+
   return (
     <div
       className="nr-surface"
@@ -103,7 +106,6 @@ function ContinueReadingCard({
         display: "flex",
         flexDirection: "column",
         gap: "1.5rem",
-        minHeight: stack ? undefined : "26rem",
         position: "relative",
       }}
     >
@@ -111,22 +113,21 @@ function ContinueReadingCard({
         <div
           style={{
             display: "flex",
-            flexDirection: stack ? "column" : "row",
-            gap: "2rem",
-            alignItems: stack ? "center" : "flex-start",
-            flex: 1,
+            flexDirection: isStack ? "column" : "row",
+            gap: "1.75rem",
+            alignItems: isStack ? "center" : "flex-start",
           }}
         >
           <div
             className="nr-inset"
             style={{
-              width: coverSize.width,
-              height: coverSize.height,
+              width: coverW,
+              height: coverH,
               borderRadius: "1rem",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: "3rem",
+              fontSize: "2.5rem",
               fontWeight: 700,
               color: "var(--nr-text-soft)",
               flexShrink: 0,
@@ -139,7 +140,7 @@ function ContinueReadingCard({
             style={{
               flex: 1,
               minWidth: 0,
-              textAlign: stack ? "center" : "left",
+              textAlign: isStack ? "center" : "left",
               width: "100%",
             }}
           >
@@ -229,7 +230,7 @@ function ContinueReadingCard({
                 style={{
                   fontSize: "0.85rem",
                   color: "var(--nr-text-soft)",
-                  marginBottom: "1rem",
+                  marginBottom: "0.35rem",
                 }}
               >
                 Latest version:{" "}
@@ -246,7 +247,7 @@ function ContinueReadingCard({
                 alignItems: "center",
                 marginTop: "1rem",
                 flexWrap: "wrap",
-                justifyContent: stack ? "center" : "flex-start",
+                justifyContent: isStack ? "center" : "flex-start",
               }}
             >
               <Link
@@ -272,10 +273,9 @@ function ContinueReadingCard({
             display: "flex",
             flexDirection: "column",
             justifyContent: "center",
-            alignItems: stack ? "center" : "flex-start",
-            flex: 1,
+            alignItems: isStack ? "center" : "flex-start",
             gap: "1.25rem",
-            textAlign: stack ? "center" : "left",
+            textAlign: isStack ? "center" : "left",
           }}
         >
           <div>
@@ -321,29 +321,30 @@ function ContinueReadingCard({
         </div>
       )}
 
-      <Link
-        href="/projects/new"
-        className="nr-surface-sm"
+      <div
         style={{
-          position: stack ? "static" : "absolute",
-          bottom: "1.25rem",
-          right: "1.25rem",
-          width: "100%",
-          maxWidth: stack ? undefined : "7rem",
-          height: "1.9rem",
-          borderRadius: "0.95rem",
           display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "var(--nr-text)",
-          fontSize: "0.85rem",
-          textDecoration: "none",
-          alignSelf: stack ? "stretch" : "auto",
-          marginTop: stack ? "0.5rem" : 0,
+          justifyContent: isStack ? "center" : "flex-end",
         }}
       >
-        New project
-      </Link>
+        <Link
+          href="/projects/new"
+          className="nr-surface-sm"
+          style={{
+            width: isStack ? "100%" : "8rem",
+            height: "2rem",
+            borderRadius: "0.95rem",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "var(--nr-text)",
+            fontSize: "0.85rem",
+            textDecoration: "none",
+          }}
+        >
+          New project
+        </Link>
+      </div>
     </div>
   );
 }
@@ -398,6 +399,182 @@ function EmptyText({ children }: { children: React.ReactNode }) {
   );
 }
 
+function ProjectsCard({ myProjects }: { myProjects: Props["myProjects"] }) {
+  return (
+    <RightCard title="Your projects">
+      {myProjects.length === 0 ? (
+        <EmptyText>No projects yet</EmptyText>
+      ) : (
+        <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+          {myProjects.map((p) => (
+            <li key={p.id} style={{ marginBottom: "0.55rem" }}>
+              <Link
+                href={`/projects/${p.id}`}
+                style={{
+                  color: "var(--nr-text)",
+                  textDecoration: "none",
+                  fontSize: "0.9rem",
+                  fontWeight: 600,
+                }}
+              >
+                {p.name}
+              </Link>
+              <div
+                style={{
+                  fontSize: "0.75rem",
+                  color: "var(--nr-text-soft)",
+                }}
+              >
+                {p.bookTitle}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </RightCard>
+  );
+}
+
+function VersionsCard({
+  recentVersions,
+}: {
+  recentVersions: Props["recentVersions"];
+}) {
+  return (
+    <RightCard title="Recent versions">
+      {recentVersions.length === 0 ? (
+        <EmptyText>No versions yet</EmptyText>
+      ) : (
+        <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+          {recentVersions.map((v) => (
+            <li key={v.id} style={{ marginBottom: "0.55rem" }}>
+              <div
+                style={{
+                  fontSize: "0.85rem",
+                  color: "var(--nr-text)",
+                  fontWeight: 600,
+                }}
+              >
+                {v.message}
+              </div>
+              <div
+                style={{
+                  fontSize: "0.75rem",
+                  color: "var(--nr-text-soft)",
+                }}
+              >
+                {v.projectName} · {v.createdAtAgo}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </RightCard>
+  );
+}
+
+function SuggestionsCard({
+  openSuggestionCount,
+}: {
+  openSuggestionCount: number;
+}) {
+  return (
+    <RightCard title="Suggestions" highlighted>
+      {openSuggestionCount === 0 ? (
+        <EmptyText>No suggestions yet</EmptyText>
+      ) : (
+        <div>
+          <div
+            style={{
+              fontSize: "1.75rem",
+              fontWeight: 700,
+              color: "var(--nr-text)",
+              marginBottom: "0.25rem",
+            }}
+          >
+            {openSuggestionCount}
+          </div>
+          <div
+            style={{
+              fontSize: "0.8rem",
+              color: "var(--nr-text-soft)",
+            }}
+          >
+            Open suggestion{openSuggestionCount === 1 ? "" : "s"} waiting for
+            your review
+          </div>
+        </div>
+      )}
+    </RightCard>
+  );
+}
+
+function NotesCard({ recentNotes }: { recentNotes: Props["recentNotes"] }) {
+  return (
+    <div className="nr-surface" style={{ padding: "1rem 1.25rem" }}>
+      <div
+        style={{
+          fontSize: "0.75rem",
+          color: "var(--nr-text-soft)",
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+          marginBottom: "0.6rem",
+        }}
+      >
+        Recent notes
+      </div>
+      {recentNotes.length === 0 ? (
+        <EmptyText>No notes yet</EmptyText>
+      ) : (
+        <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+          {recentNotes.map((n) => (
+            <li
+              key={n.id}
+              style={{
+                fontSize: "0.85rem",
+                color: "var(--nr-text)",
+                marginBottom: "0.5rem",
+                lineHeight: 1.4,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {n.content}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function VersionsSavedCard({ versionCount }: { versionCount: number }) {
+  return (
+    <div className="nr-surface" style={{ padding: "1rem" }}>
+      <div
+        style={{
+          fontSize: "0.75rem",
+          color: "var(--nr-text-soft)",
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+        }}
+      >
+        Versions saved
+      </div>
+      <div
+        style={{
+          fontSize: "2rem",
+          fontWeight: 700,
+          color: "var(--nr-text)",
+          marginTop: "0.35rem",
+        }}
+      >
+        {versionCount}
+      </div>
+    </div>
+  );
+}
+
 function DesktopLayout({
   current,
   myProjects,
@@ -428,183 +605,66 @@ function DesktopLayout({
       </div>
 
       <div style={{ gridColumn: "1 / 4", gridRow: "2 / 4" }}>
-        <ContinueReadingCard
-          current={current}
-          coverSize={{ width: "10rem", height: "14rem" }}
-          stack={false}
-        />
+        <ContinueReadingCard current={current} layout="row" />
       </div>
 
       <div style={{ gridColumn: "4", gridRow: "1 / 2" }}>
-        <RightCard title="Your projects">
-          {myProjects.length === 0 ? (
-            <EmptyText>No projects yet</EmptyText>
-          ) : (
-            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-              {myProjects.map((p) => (
-                <li key={p.id} style={{ marginBottom: "0.55rem" }}>
-                  <Link
-                    href={`/projects/${p.id}`}
-                    style={{
-                      color: "var(--nr-text)",
-                      textDecoration: "none",
-                      fontSize: "0.9rem",
-                      fontWeight: 600,
-                    }}
-                  >
-                    {p.name}
-                  </Link>
-                  <div
-                    style={{
-                      fontSize: "0.75rem",
-                      color: "var(--nr-text-soft)",
-                    }}
-                  >
-                    {p.bookTitle}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </RightCard>
+        <ProjectsCard myProjects={myProjects} />
       </div>
 
       <div style={{ gridColumn: "4", gridRow: "2 / 3" }}>
-        <RightCard title="Recent versions">
-          {recentVersions.length === 0 ? (
-            <EmptyText>No versions yet</EmptyText>
-          ) : (
-            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-              {recentVersions.map((v) => (
-                <li key={v.id} style={{ marginBottom: "0.55rem" }}>
-                  <div
-                    style={{
-                      fontSize: "0.85rem",
-                      color: "var(--nr-text)",
-                      fontWeight: 600,
-                    }}
-                  >
-                    {v.message}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "0.75rem",
-                      color: "var(--nr-text-soft)",
-                    }}
-                  >
-                    {v.projectName} · {v.createdAtAgo}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </RightCard>
+        <VersionsCard recentVersions={recentVersions} />
       </div>
 
       <div style={{ gridColumn: "4", gridRow: "3 / 4" }}>
-        <RightCard title="Suggestions" highlighted>
-          {openSuggestionCount === 0 ? (
-            <EmptyText>No suggestions yet</EmptyText>
-          ) : (
-            <div>
-              <div
-                style={{
-                  fontSize: "1.75rem",
-                  fontWeight: 700,
-                  color: "var(--nr-text)",
-                  marginBottom: "0.25rem",
-                }}
-              >
-                {openSuggestionCount}
-              </div>
-              <div
-                style={{
-                  fontSize: "0.8rem",
-                  color: "var(--nr-text-soft)",
-                }}
-              >
-                Open suggestion{openSuggestionCount === 1 ? "" : "s"} waiting
-                for your review
-              </div>
-            </div>
-          )}
-        </RightCard>
+        <SuggestionsCard openSuggestionCount={openSuggestionCount} />
       </div>
 
-      <div
-        className="nr-surface"
-        style={{
-          gridColumn: "2 / 4",
-          gridRow: "4",
-          padding: "1.1rem 1.25rem",
-          minHeight: "6rem",
-        }}
-      >
-        <div
-          style={{
-            fontSize: "0.75rem",
-            color: "var(--nr-text-soft)",
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
-            marginBottom: "0.6rem",
-          }}
-        >
-          Recent notes
-        </div>
-        {recentNotes.length === 0 ? (
-          <EmptyText>No notes yet</EmptyText>
-        ) : (
-          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-            {recentNotes.map((n) => (
-              <li
-                key={n.id}
-                style={{
-                  fontSize: "0.85rem",
-                  color: "var(--nr-text)",
-                  marginBottom: "0.5rem",
-                  lineHeight: 1.4,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
-                {n.content}
-              </li>
-            ))}
-          </ul>
-        )}
+      <div style={{ gridColumn: "2 / 4", gridRow: "4" }}>
+        <NotesCard recentNotes={recentNotes} />
       </div>
 
+      <div style={{ gridColumn: "4", gridRow: "4" }}>
+        <VersionsSavedCard versionCount={versionCount} />
+      </div>
+    </div>
+  );
+}
+
+function TabletLayout({
+  current,
+  myProjects,
+  recentNotes,
+  recentVersions,
+  versionCount,
+  openSuggestionCount,
+}: Props) {
+  return (
+    <div
+      style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        gap: "1.25rem",
+      }}
+    >
+      <SearchBar />
+
+      <ContinueReadingCard current={current} layout="row" />
+
       <div
-        className="nr-surface"
         style={{
-          gridColumn: "4",
-          gridRow: "4",
-          padding: "1rem",
-          position: "relative",
-          minHeight: "6rem",
-          overflow: "hidden",
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "1.25rem",
         }}
       >
-        <div
-          style={{
-            fontSize: "0.75rem",
-            color: "var(--nr-text-soft)",
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
-          }}
-        >
-          Versions saved
-        </div>
-        <div
-          style={{
-            fontSize: "2rem",
-            fontWeight: 700,
-            color: "var(--nr-text)",
-            marginTop: "0.35rem",
-          }}
-        >
-          {versionCount}
+        <ProjectsCard myProjects={myProjects} />
+        <VersionsCard recentVersions={recentVersions} />
+        <SuggestionsCard openSuggestionCount={openSuggestionCount} />
+        <NotesCard recentNotes={recentNotes} />
+        <div style={{ gridColumn: "1 / 3" }}>
+          <VersionsSavedCard versionCount={versionCount} />
         </div>
       </div>
     </div>
@@ -629,158 +689,12 @@ function MobileLayout({
       }}
     >
       <SearchBar />
-
-      <ContinueReadingCard
-        current={current}
-        coverSize={{ width: "7rem", height: "9.5rem" }}
-        stack={true}
-      />
-
-      <RightCard title="Your projects">
-        {myProjects.length === 0 ? (
-          <EmptyText>No projects yet</EmptyText>
-        ) : (
-          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-            {myProjects.map((p) => (
-              <li key={p.id} style={{ marginBottom: "0.55rem" }}>
-                <Link
-                  href={`/projects/${p.id}`}
-                  style={{
-                    color: "var(--nr-text)",
-                    textDecoration: "none",
-                    fontSize: "0.95rem",
-                    fontWeight: 600,
-                  }}
-                >
-                  {p.name}
-                </Link>
-                <div
-                  style={{
-                    fontSize: "0.8rem",
-                    color: "var(--nr-text-soft)",
-                  }}
-                >
-                  {p.bookTitle}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </RightCard>
-
-      <RightCard title="Recent versions">
-        {recentVersions.length === 0 ? (
-          <EmptyText>No versions yet</EmptyText>
-        ) : (
-          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-            {recentVersions.map((v) => (
-              <li key={v.id} style={{ marginBottom: "0.55rem" }}>
-                <div
-                  style={{
-                    fontSize: "0.9rem",
-                    color: "var(--nr-text)",
-                    fontWeight: 600,
-                  }}
-                >
-                  {v.message}
-                </div>
-                <div
-                  style={{
-                    fontSize: "0.8rem",
-                    color: "var(--nr-text-soft)",
-                  }}
-                >
-                  {v.projectName} · {v.createdAtAgo}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </RightCard>
-
-      <RightCard title="Suggestions" highlighted>
-        {openSuggestionCount === 0 ? (
-          <EmptyText>No suggestions yet</EmptyText>
-        ) : (
-          <div>
-            <div
-              style={{
-                fontSize: "1.75rem",
-                fontWeight: 700,
-                color: "var(--nr-text)",
-                marginBottom: "0.25rem",
-              }}
-            >
-              {openSuggestionCount}
-            </div>
-            <div
-              style={{
-                fontSize: "0.8rem",
-                color: "var(--nr-text-soft)",
-              }}
-            >
-              Open suggestion{openSuggestionCount === 1 ? "" : "s"} waiting for
-              your review
-            </div>
-          </div>
-        )}
-      </RightCard>
-
-      <div className="nr-surface" style={{ padding: "1rem 1.25rem" }}>
-        <div
-          style={{
-            fontSize: "0.75rem",
-            color: "var(--nr-text-soft)",
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
-            marginBottom: "0.6rem",
-          }}
-        >
-          Recent notes
-        </div>
-        {recentNotes.length === 0 ? (
-          <EmptyText>No notes yet</EmptyText>
-        ) : (
-          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-            {recentNotes.map((n) => (
-              <li
-                key={n.id}
-                style={{
-                  fontSize: "0.9rem",
-                  color: "var(--nr-text)",
-                  marginBottom: "0.5rem",
-                  lineHeight: 1.4,
-                }}
-              >
-                {n.content}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div className="nr-surface" style={{ padding: "1rem" }}>
-        <div
-          style={{
-            fontSize: "0.75rem",
-            color: "var(--nr-text-soft)",
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
-          }}
-        >
-          Versions saved
-        </div>
-        <div
-          style={{
-            fontSize: "2rem",
-            fontWeight: 700,
-            color: "var(--nr-text)",
-            marginTop: "0.35rem",
-          }}
-        >
-          {versionCount}
-        </div>
-      </div>
+      <ContinueReadingCard current={current} layout="stack" />
+      <ProjectsCard myProjects={myProjects} />
+      <VersionsCard recentVersions={recentVersions} />
+      <SuggestionsCard openSuggestionCount={openSuggestionCount} />
+      <NotesCard recentNotes={recentNotes} />
+      <VersionsSavedCard versionCount={versionCount} />
     </div>
   );
 }

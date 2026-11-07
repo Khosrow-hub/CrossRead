@@ -37,6 +37,13 @@ export const suggestionStatusEnum = pgEnum("suggestion_status", [
   "declined",
 ]);
 
+export const notificationTypeEnum = pgEnum("notification_type", [
+  "suggestion_received",
+  "suggestion_accepted",
+  "suggestion_declined",
+  "project_forked",
+]);
+
 export const users = pgTable(
   "users",
   {
@@ -349,6 +356,40 @@ export const suggestionComments = pgTable(
   })
 );
 
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    type: notificationTypeEnum("type").notNull(),
+    projectId: uuid("project_id").references(() => projects.id, {
+      onDelete: "cascade",
+    }),
+    suggestionId: uuid("suggestion_id").references(() => suggestions.id, {
+      onDelete: "cascade",
+    }),
+    isRead: boolean("is_read").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    userReadIdx: index("notifications_user_read_idx").on(
+      table.userId,
+      table.isRead
+    ),
+    userCreatedIdx: index("notifications_user_created_idx").on(
+      table.userId,
+      table.createdAt
+    ),
+  })
+);
+
 export const usersRelations = relations(users, ({ many }) => ({
   projects: many(projects),
   annotations: many(annotations),
@@ -357,6 +398,10 @@ export const usersRelations = relations(users, ({ many }) => ({
   readingProgress: many(readingProgress),
   suggestionsAuthored: many(suggestions),
   suggestionComments: many(suggestionComments),
+  notifications: many(notifications, { relationName: "notificationUser" }),
+  notificationsCaused: many(notifications, {
+    relationName: "notificationActor",
+  }),
 }));
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({
@@ -503,6 +548,27 @@ export const suggestionCommentsRelations = relations(
   })
 );
 
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(users, {
+    fields: [notifications.userId],
+    references: [users.id],
+    relationName: "notificationUser",
+  }),
+  actor: one(users, {
+    fields: [notifications.actorId],
+    references: [users.id],
+    relationName: "notificationActor",
+  }),
+  project: one(projects, {
+    fields: [notifications.projectId],
+    references: [projects.id],
+  }),
+  suggestion: one(suggestions, {
+    fields: [notifications.suggestionId],
+    references: [suggestions.id],
+  }),
+}));
+
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 
@@ -538,3 +604,6 @@ export type NewSuggestion = typeof suggestions.$inferInsert;
 
 export type SuggestionComment = typeof suggestionComments.$inferSelect;
 export type NewSuggestionComment = typeof suggestionComments.$inferInsert;
+
+export type Notification = typeof notifications.$inferSelect;
+export type NewNotification = typeof notifications.$inferInsert;

@@ -77,8 +77,18 @@ export default function Reader({
   const [suggestSaving, setSuggestSaving] = useState(false);
   const [suggestError, setSuggestError] = useState<string | null>(null);
   const [suggestSuccess, setSuggestSuccess] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const lastReportedChapterRef = useRef<string | null>(initialLocation);
+
+  useEffect(() => {
+    function update() {
+      setIsMobile(window.innerWidth < 1100);
+    }
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
 
   useEffect(() => {
     if (initialLocation) {
@@ -301,6 +311,7 @@ export default function Reader({
   }
 
   const canSuggest = forkedFromId !== null;
+  const bottomOffset = isMobile ? "5rem" : "6rem";
 
   return (
     <div
@@ -309,7 +320,7 @@ export default function Reader({
         display: "flex",
         flexDirection: "column",
         gap: "1.25rem",
-        paddingBottom: "6rem",
+        paddingBottom: isMobile ? "8rem" : "6rem",
       }}
     >
       {saveError && <div className="nr-error">{saveError}</div>}
@@ -326,7 +337,10 @@ export default function Reader({
         </div>
       )}
 
-      <div className="nr-surface" style={{ padding: "2rem" }}>
+      <div
+        className="nr-surface"
+        style={{ padding: isMobile ? "1.25rem" : "2rem" }}
+      >
         {chapters.map((chapter) => {
           const chapterPassages = passages.filter(
             (p) => p.chapterId === chapter.id
@@ -340,7 +354,7 @@ export default function Reader({
             >
               <h2
                 style={{
-                  fontSize: "1.1rem",
+                  fontSize: "1.05rem",
                   fontWeight: 700,
                   color: "var(--nr-text)",
                   textTransform: "uppercase",
@@ -363,7 +377,7 @@ export default function Reader({
                     <div key={p.id} data-passage-id={p.id}>
                       <p
                         style={{
-                          fontSize: "1rem",
+                          fontSize: isMobile ? "0.95rem" : "1rem",
                           lineHeight: 1.75,
                           color: "var(--nr-text)",
                           margin: 0,
@@ -514,12 +528,14 @@ export default function Reader({
           className="nr-surface"
           style={{
             position: "fixed",
-            bottom: "6rem",
-            left: "50%",
-            transform: "translateX(-50%)",
+            bottom: bottomOffset,
+            left: isMobile ? "1rem" : "50%",
+            right: isMobile ? "1rem" : undefined,
+            transform: isMobile ? "none" : "translateX(-50%)",
             padding: "0.5rem",
-            display: "flex",
-            gap: "0.25rem",
+            display: "grid",
+            gridTemplateColumns: isMobile ? "1fr 1fr" : "auto auto auto auto",
+            gap: "0.35rem",
             zIndex: 50,
           }}
         >
@@ -531,8 +547,8 @@ export default function Reader({
                 className="nr-button"
                 style={{
                   width: "auto",
-                  padding: "0.5rem 0.85rem",
-                  fontSize: "0.85rem",
+                  padding: isMobile ? "0.6rem 0.5rem" : "0.5rem 0.85rem",
+                  fontSize: isMobile ? "0.75rem" : "0.85rem",
                   textTransform: "capitalize",
                 }}
               >
@@ -548,10 +564,11 @@ export default function Reader({
           className="nr-surface"
           style={{
             position: "fixed",
-            bottom: "1.5rem",
-            left: "50%",
-            transform: "translateX(-50%)",
-            width: "30rem",
+            bottom: bottomOffset,
+            left: isMobile ? "1rem" : "50%",
+            right: isMobile ? "1rem" : undefined,
+            transform: isMobile ? "none" : "translateX(-50%)",
+            width: isMobile ? undefined : "30rem",
             maxWidth: "calc(100vw - 2rem)",
             padding: "1.25rem",
             zIndex: 60,
@@ -669,8 +686,9 @@ export default function Reader({
           style={{
             position: "fixed",
             bottom: "1.5rem",
-            right: "1.5rem",
-            width: "22rem",
+            right: isMobile ? "1rem" : "1.5rem",
+            left: isMobile ? "1rem" : undefined,
+            width: isMobile ? undefined : "22rem",
             padding: "1.25rem",
             zIndex: 40,
           }}
@@ -725,8 +743,9 @@ export default function Reader({
         style={{
           position: "fixed",
           bottom: "1.5rem",
-          left: "50%",
-          transform: "translateX(-50%)",
+          left: isMobile ? "1rem" : "50%",
+          right: isMobile ? "1rem" : undefined,
+          transform: isMobile ? "none" : "translateX(-50%)",
           zIndex: 30,
         }}
       >
@@ -735,7 +754,7 @@ export default function Reader({
           disabled={draftCount === 0 || saving}
           className="nr-button"
           style={{
-            width: "auto",
+            width: "100%",
             paddingLeft: "1.5rem",
             paddingRight: "1.5rem",
             opacity: draftCount === 0 ? 0.55 : 1,

@@ -5,6 +5,7 @@ import {
   projects,
   annotations,
   readingProgress,
+  notifications,
 } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/auth/session";
 
@@ -123,6 +124,15 @@ export async function POST(
     lastReadAt: new Date(),
     updatedAt: new Date(),
   });
+
+  if (source.ownerId !== user.id) {
+    await db.insert(notifications).values({
+      userId: source.ownerId,
+      actorId: user.id,
+      type: "project_forked",
+      projectId: created.id,
+    });
+  }
 
   return NextResponse.json({ project: created }, { status: 201 });
 }
