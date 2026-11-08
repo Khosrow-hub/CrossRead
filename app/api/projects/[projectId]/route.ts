@@ -4,6 +4,7 @@ import { eq, and } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { projects } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/auth/session";
+import { isUuid } from "@/lib/validators/uuid";
 
 const updateSchema = z.object({
   name: z.string().min(2).max(80).optional(),
@@ -21,6 +22,9 @@ export async function GET(
   }
 
   const { projectId } = await params;
+  if (!isUuid(projectId)) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
 
   const rows = await db
     .select()
@@ -51,6 +55,9 @@ export async function PATCH(
   }
 
   const { projectId } = await params;
+  if (!isUuid(projectId)) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
 
   const rows = await db
     .select()
@@ -109,6 +116,9 @@ export async function DELETE(
   }
 
   const { projectId } = await params;
+  if (!isUuid(projectId)) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
 
   const rows = await db
     .select({ id: projects.id })

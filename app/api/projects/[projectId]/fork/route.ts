@@ -8,6 +8,7 @@ import {
   notifications,
 } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/auth/session";
+import { isUuid } from "@/lib/validators/uuid";
 
 function slugify(input: string): string {
   return input
@@ -29,6 +30,9 @@ export async function POST(
   }
 
   const { projectId } = await params;
+  if (!isUuid(projectId)) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
 
   const sourceRows = await db
     .select()
@@ -108,19 +112,11 @@ export async function POST(
     );
   }
 
-  const sourceProgress = await db
-    .select()
-    .from(readingProgress)
-    .where(eq(readingProgress.projectId, source.id))
-    .limit(1);
-
-  const location = sourceProgress[0]?.currentLocation ?? "Started reading";
-
   await db.insert(readingProgress).values({
     userId: user.id,
     projectId: created.id,
-    currentLocation: location,
-    progressPercentage: sourceProgress[0]?.progressPercentage ?? 0,
+    currentLocation: "Started reading",
+    progressPercentage: 0,
     lastReadAt: new Date(),
     updatedAt: new Date(),
   });

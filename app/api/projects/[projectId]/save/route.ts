@@ -4,6 +4,7 @@ import { eq, and } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { projects, annotations, versions, versionEdits } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/auth/session";
+import { isUuid } from "@/lib/validators/uuid";
 
 const saveSchema = z.object({
   message: z.string().max(200).optional(),
@@ -19,6 +20,9 @@ export async function POST(
   }
 
   const { projectId } = await params;
+  if (!isUuid(projectId)) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
 
   const projectRows = await db
     .select({ id: projects.id })
@@ -68,38 +72,53 @@ export async function POST(
       ? parsed.data.message.trim()
       : `Saved ${draftRows.length} change${draftRows.length === 1 ? "" : "s"}`;
 
-  const [version] = await db
-    .insert(versions)
-    .values({
-      projectId,
-      authorId: user.id,
-      message,
-    })
-    .returning({ id: versions.id, message: versions.message, createdAt: versions.createdAt });
+  try {
+    const result = await db.transaction(async (tx) => {
+      const [version] = await tx
+        .insert(versions)
+        .values({
+          projectId,
+          authorId: user.id,
+          message,
+        })
+        .returning({
+          id: versions.id,
+          message: versions.message,
+          createdAt: versions.createdAt,
+        });
 
-  for (const annotation of draftRows) {
-    await db.insert(versionEdits).values({
-      versionId: version.id,
-      annotationId: annotation.id,
-      action: "create",
-      beforeData: null,
-      afterData: {
-        type: annotation.type,
-        content: annotation.content,
-        passageId: annotation.passageId,
-      },
+      for (const annotation of draftRows) {
+        await tx.insert(versionEdits).values({
+          versionId: version.id,
+          annotationId: annotation.id,
+          action: "create",
+          beforeData: null,
+          afterData: {
+            type: annotation.type,
+            content: annotation.content,
+            passageId: annotation.passageId,
+          },
+        });
+      }
+
+      await tx
+        .update(annotations)
+        .set({ isDraft: false, updatedAt: new Date() })
+        .where(
+          and(
+            eq(annotations.projectId, projectId),
+            eq(annotations.isDraft, true)
+          )
+        );
+
+      return version;
     });
-  }
 
-  await db
-    .update(annotations)
-    .set({ isDraft: false, updatedAt: new Date() })
-    .where(
-      and(
-        eq(annotations.projectId, projectId),
-        eq(annotations.isDraft, true)
-      )
+    return NextResponse.json({ version: result }, { status: 201 });
+  } catch {
+    return NextResponse.json(
+      { error: "Something went wrong" },
+      { status: 500 }
     );
-
-  return NextResponse.json({ version }, { status: 201 });
+  }
 }

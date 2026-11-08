@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { eq, and } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { annotations, projects } from "@/lib/db/schema";
+import { annotations, projects, passages, chapters } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/auth/session";
+import { isUuid } from "@/lib/validators/uuid";
 
 const createAnnotationSchema = z.object({
   passageId: z.string().uuid(),
@@ -21,9 +22,12 @@ export async function POST(
   }
 
   const { projectId } = await params;
+  if (!isUuid(projectId)) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
 
   const projectRows = await db
-    .select({ id: projects.id })
+    .select({ id: projects.id, bookId: projects.bookId })
     .from(projects)
     .where(and(eq(projects.id, projectId), eq(projects.ownerId, user.id)))
     .limit(1);
@@ -32,12 +36,33 @@ export async function POST(
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }
 
+  const project = projectRows[0];
+
   try {
     const body = await request.json();
     const parsed = createAnnotationSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
         { error: parsed.error.issues[0].message },
+        { status: 400 }
+      );
+    }
+
+    const passageRows = await db
+      .select({ id: passages.id })
+      .from(passages)
+      .innerJoin(chapters, eq(passages.chapterId, chapters.id))
+      .where(
+        and(
+          eq(passages.id, parsed.data.passageId),
+          eq(chapters.bookId, project.bookId)
+        )
+      )
+      .limit(1);
+
+    if (passageRows.length === 0) {
+      return NextResponse.json(
+        { error: "That passage does not belong to this book." },
         { status: 400 }
       );
     }
@@ -57,6 +82,8 @@ export async function POST(
         type: annotations.type,
         content: annotations.content,
         createdAt: annotations.createdAt,
+        isDraft: annotations.isDraft,
+        authorId: annotations.authorId,
       });
 
     return NextResponse.json({ annotation: created }, { status: 201 });

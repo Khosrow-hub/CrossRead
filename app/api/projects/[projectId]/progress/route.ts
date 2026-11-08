@@ -4,6 +4,7 @@ import { eq, and } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { projects, readingProgress } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/auth/session";
+import { isUuid } from "@/lib/validators/uuid";
 
 const progressSchema = z.object({
   currentLocation: z.string().max(200).optional(),
@@ -20,14 +21,24 @@ export async function PATCH(
   }
 
   const { projectId } = await params;
+  if (!isUuid(projectId)) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
 
   const projectRows = await db
-    .select({ id: projects.id })
+    .select({ id: projects.id, ownerId: projects.ownerId, visibility: projects.visibility })
     .from(projects)
-    .where(and(eq(projects.id, projectId), eq(projects.ownerId, user.id)))
+    .where(eq(projects.id, projectId))
     .limit(1);
 
   if (projectRows.length === 0) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
+
+  const project = projectRows[0];
+  const canTrack =
+    project.ownerId === user.id || project.visibility === "public";
+  if (!canTrack) {
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }
 
