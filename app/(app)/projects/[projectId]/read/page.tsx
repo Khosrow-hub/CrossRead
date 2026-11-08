@@ -26,6 +26,7 @@ export default async function ReadPage({
       name: projects.name,
       ownerId: projects.ownerId,
       bookId: projects.bookId,
+      visibility: projects.visibility,
       forkedFromId: projects.forkedFromId,
       bookTitle: books.title,
       bookAuthor: books.author,
@@ -39,7 +40,7 @@ export default async function ReadPage({
   const project = projectRows[0];
 
   const canView =
-    project.ownerId === user.id || true;
+    project.ownerId === user.id || project.visibility === "public";
   if (!canView) notFound();
 
   const chapterRows = await db

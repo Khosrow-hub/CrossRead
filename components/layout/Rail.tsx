@@ -46,6 +46,7 @@ export function Rail({
   const [isMobile, setIsMobile] = useState(false);
   const [unread, setUnread] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function update() {
@@ -61,13 +62,13 @@ export function Rail({
 
     async function load() {
       try {
-        const res = await fetch("/api/notifications/unread", { cache: "no-store" });
+        const res = await fetch("/api/notifications/unread", {
+          cache: "no-store",
+        });
         if (!res.ok) return;
         const data = await res.json();
         if (!cancelled) setUnread(data.count ?? 0);
-      } catch {
-        // ignore
-      }
+      } catch {}
     }
 
     load();
@@ -81,6 +82,9 @@ export function Rail({
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+      if (sheetRef.current && !sheetRef.current.contains(e.target as Node)) {
         setMenuOpen(false);
       }
     }
@@ -102,7 +106,6 @@ export function Rail({
     { href: "/projects", label: "Projects", icon: "P" },
     { href: "/projects/versions", label: "Versions", icon: "V" },
     { href: "/notifications", label: "Alerts", icon: "N", badge: unread },
-    { href: "/settings", label: "Settings", icon: "S" },
   ];
 
   const readerMode = isReaderPage(pathname);
@@ -113,86 +116,215 @@ export function Rail({
     }
 
     return (
-      <div
-        style={{
-          position: "fixed",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          zIndex: 100,
-          display: "flex",
-          justifyContent: "space-around",
-          alignItems: "stretch",
-          padding: "0.4rem 0.2rem calc(0.4rem + env(safe-area-inset-bottom))",
-          background: "var(--nr-surface)",
-          boxShadow:
-            "0 -6px 20px rgba(0,0,0,0.08), 0 -1px 0 var(--nr-shadow-dark)",
-        }}
-      >
-        {items.map((item) => {
-          const active = isActive(pathname, item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              style={{
-                flex: 1,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "0.15rem",
-                padding: "0.3rem 0",
-                textDecoration: "none",
-                color: active ? "var(--nr-accent)" : "var(--nr-text-soft)",
-                fontSize: "0.6rem",
-                fontWeight: active ? 700 : 500,
-                position: "relative",
-              }}
-            >
-              <div
-                className={active ? "nr-inset" : ""}
+      <>
+        <div
+          style={{
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            zIndex: 100,
+            display: "flex",
+            justifyContent: "space-around",
+            alignItems: "stretch",
+            padding: "0.4rem 0.2rem calc(0.4rem + env(safe-area-inset-bottom))",
+            background: "var(--nr-surface)",
+            boxShadow:
+              "0 -6px 20px rgba(0,0,0,0.08), 0 -1px 0 var(--nr-shadow-dark)",
+          }}
+        >
+          {items.map((item) => {
+            const active = isActive(pathname, item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
                 style={{
-                  width: "1.9rem",
-                  height: "1.9rem",
-                  borderRadius: "0.5rem",
+                  flex: 1,
                   display: "flex",
+                  flexDirection: "column",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: "0.85rem",
-                  fontWeight: 700,
+                  gap: "0.15rem",
+                  padding: "0.3rem 0",
+                  textDecoration: "none",
+                  color: active ? "var(--nr-accent)" : "var(--nr-text-soft)",
+                  fontSize: "0.6rem",
+                  fontWeight: active ? 700 : 500,
                   position: "relative",
                 }}
               >
-                {item.icon}
-                {item.badge && item.badge > 0 ? (
-                  <span
-                    style={{
-                      position: "absolute",
-                      top: "-0.15rem",
-                      right: "-0.15rem",
-                      minWidth: "1rem",
-                      height: "1rem",
-                      borderRadius: "0.5rem",
-                      background: "var(--nr-accent)",
-                      color: "white",
-                      fontSize: "0.6rem",
-                      fontWeight: 700,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      padding: "0 0.25rem",
-                    }}
-                  >
-                    {item.badge > 9 ? "9+" : item.badge}
-                  </span>
-                ) : null}
+                <div
+                  className={active ? "nr-inset" : ""}
+                  style={{
+                    width: "1.9rem",
+                    height: "1.9rem",
+                    borderRadius: "0.5rem",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "0.85rem",
+                    fontWeight: 700,
+                    position: "relative",
+                  }}
+                >
+                  {item.icon}
+                  {item.badge && item.badge > 0 ? (
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: "-0.15rem",
+                        right: "-0.15rem",
+                        minWidth: "1rem",
+                        height: "1rem",
+                        borderRadius: "0.5rem",
+                        background: "var(--nr-accent)",
+                        color: "white",
+                        fontSize: "0.6rem",
+                        fontWeight: 700,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: "0 0.25rem",
+                      }}
+                    >
+                      {item.badge > 9 ? "9+" : item.badge}
+                    </span>
+                  ) : null}
+                </div>
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+
+          <button
+            onClick={() => setMenuOpen((v) => !v)}
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.15rem",
+              padding: "0.3rem 0",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              color: "var(--nr-text-soft)",
+              fontSize: "0.6rem",
+            }}
+          >
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt=""
+                style={{
+                  width: "1.9rem",
+                  height: "1.9rem",
+                  borderRadius: "50%",
+                  objectFit: "cover",
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: "1.9rem",
+                  height: "1.9rem",
+                  borderRadius: "50%",
+                  background: "var(--nr-surface)",
+                  boxShadow:
+                    "-2px -2px 4px var(--nr-shadow-light), 2px 2px 4px var(--nr-shadow-dark)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: 700,
+                  color: "var(--nr-text)",
+                  fontSize: "0.85rem",
+                }}
+              >
+                {displayName.charAt(0).toUpperCase()}
               </div>
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
-      </div>
+            )}
+            <span>Me</span>
+          </button>
+        </div>
+
+        {menuOpen && (
+          <div
+            ref={sheetRef}
+            style={{
+              position: "fixed",
+              bottom: "5rem",
+              right: "1rem",
+              left: "1rem",
+              zIndex: 101,
+              display: "flex",
+              justifyContent: "flex-end",
+            }}
+          >
+            <div
+              className="nr-surface"
+              style={{
+                width: "100%",
+                maxWidth: "16rem",
+                padding: "1rem",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "0.95rem",
+                  fontWeight: 700,
+                  color: "var(--nr-text)",
+                  marginBottom: "0.15rem",
+                }}
+              >
+                {displayName}
+              </div>
+              <div
+                style={{
+                  fontSize: "0.8rem",
+                  color: "var(--nr-text-soft)",
+                  marginBottom: "0.5rem",
+                }}
+              >
+                @{username}
+              </div>
+              <div
+                style={{
+                  fontSize: "0.75rem",
+                  color: "var(--nr-text-soft)",
+                  marginBottom: "0.9rem",
+                  wordBreak: "break-all",
+                }}
+              >
+                {email}
+              </div>
+              <Link
+                href="/settings"
+                className="nr-button"
+                style={{
+                  width: "100%",
+                  textDecoration: "none",
+                  padding: "0.5rem",
+                  marginBottom: "0.5rem",
+                  display: "block",
+                  textAlign: "center",
+                }}
+                onClick={() => setMenuOpen(false)}
+              >
+                Settings
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="nr-button"
+                style={{ width: "100%", padding: "0.5rem" }}
+              >
+                Log out
+              </button>
+            </div>
+          </div>
+        )}
+      </>
     );
   }
 
@@ -243,73 +375,75 @@ export function Rail({
           padding: "0.6rem 0.35rem",
         }}
       >
-        {items.map((item) => {
-          const active = isActive(pathname, item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5rem",
-                padding: "0.55rem 0.6rem",
-                borderRadius: "0.6rem",
-                textDecoration: "none",
-                background: active ? "var(--nr-surface)" : "transparent",
-                boxShadow: active
-                  ? "-3px -3px 8px var(--nr-shadow-light), 3px 3px 8px var(--nr-shadow-dark)"
-                  : "none",
-                color: active ? "var(--nr-accent)" : "var(--nr-text-soft)",
-                fontSize: "0.8rem",
-                fontWeight: active ? 700 : 500,
-                transition: "all 120ms ease",
-                position: "relative",
-              }}
-            >
-              <span
+        {[...items, { href: "/settings", label: "Settings", icon: "S" }].map(
+          (item) => {
+            const active = isActive(pathname, item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
                 style={{
-                  width: "1.5rem",
-                  height: "1.5rem",
-                  borderRadius: "0.4rem",
                   display: "flex",
                   alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "0.75rem",
-                  fontWeight: 700,
-                  background: active ? "var(--nr-bg)" : "var(--nr-surface)",
+                  gap: "0.5rem",
+                  padding: "0.55rem 0.6rem",
+                  borderRadius: "0.6rem",
+                  textDecoration: "none",
+                  background: active ? "var(--nr-surface)" : "transparent",
+                  boxShadow: active
+                    ? "-3px -3px 8px var(--nr-shadow-light), 3px 3px 8px var(--nr-shadow-dark)"
+                    : "none",
                   color: active ? "var(--nr-accent)" : "var(--nr-text-soft)",
+                  fontSize: "0.8rem",
+                  fontWeight: active ? 700 : 500,
+                  transition: "all 120ms ease",
                   position: "relative",
                 }}
               >
-                {item.icon}
-                {item.badge && item.badge > 0 ? (
-                  <span
-                    style={{
-                      position: "absolute",
-                      top: "-0.2rem",
-                      right: "-0.2rem",
-                      minWidth: "1rem",
-                      height: "1rem",
-                      borderRadius: "0.5rem",
-                      background: "var(--nr-accent)",
-                      color: "white",
-                      fontSize: "0.6rem",
-                      fontWeight: 700,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      padding: "0 0.25rem",
-                    }}
-                  >
-                    {item.badge > 9 ? "9+" : item.badge}
-                  </span>
-                ) : null}
-              </span>
-              {item.label}
-            </Link>
-          );
-        })}
+                <span
+                  style={{
+                    width: "1.5rem",
+                    height: "1.5rem",
+                    borderRadius: "0.4rem",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    background: active ? "var(--nr-bg)" : "var(--nr-surface)",
+                    color: active ? "var(--nr-accent)" : "var(--nr-text-soft)",
+                    position: "relative",
+                  }}
+                >
+                  {item.icon}
+                  {"badge" in item && item.badge && item.badge > 0 ? (
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: "-0.2rem",
+                        right: "-0.2rem",
+                        minWidth: "1rem",
+                        height: "1rem",
+                        borderRadius: "0.5rem",
+                        background: "var(--nr-accent)",
+                        color: "white",
+                        fontSize: "0.6rem",
+                        fontWeight: 700,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: "0 0.25rem",
+                      }}
+                    >
+                      {item.badge > 9 ? "9+" : item.badge}
+                    </span>
+                  ) : null}
+                </span>
+                {item.label}
+              </Link>
+            );
+          }
+        )}
       </div>
 
       <div ref={menuRef} style={{ position: "relative" }}>
