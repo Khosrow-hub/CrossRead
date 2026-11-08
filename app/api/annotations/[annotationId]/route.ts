@@ -4,6 +4,7 @@ import { eq, and } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { annotations, projects } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/auth/session";
+import { isUuid } from "@/lib/validators/uuid";
 
 const updateSchema = z.object({
   content: z.string().min(1).max(4000).optional(),
@@ -24,6 +25,8 @@ async function loadAnnotationWithAccess(
       content: annotations.content,
       type: annotations.type,
       isDeleted: annotations.isDeleted,
+      passageId: annotations.passageId,
+      isDraft: annotations.isDraft,
     })
     .from(annotations)
     .innerJoin(projects, eq(annotations.projectId, projects.id))
@@ -47,6 +50,13 @@ export async function PATCH(
   }
 
   const { annotationId } = await params;
+  if (!isUuid(annotationId)) {
+    return NextResponse.json(
+      { error: "Annotation not found" },
+      { status: 404 }
+    );
+  }
+
   const existing = await loadAnnotationWithAccess(annotationId, user.id);
   if (!existing) {
     return NextResponse.json(
@@ -105,6 +115,13 @@ export async function DELETE(
   }
 
   const { annotationId } = await params;
+  if (!isUuid(annotationId)) {
+    return NextResponse.json(
+      { error: "Annotation not found" },
+      { status: 404 }
+    );
+  }
+
   const existing = await loadAnnotationWithAccess(annotationId, user.id);
   if (!existing) {
     return NextResponse.json(
@@ -116,7 +133,9 @@ export async function DELETE(
   await db
     .update(annotations)
     .set({ isDeleted: true, updatedAt: new Date() })
-    .where(and(eq(annotations.id, annotationId), eq(annotations.isDeleted, false)));
+    .where(
+      and(eq(annotations.id, annotationId), eq(annotations.isDeleted, false))
+    );
 
   return NextResponse.json({ ok: true });
 }

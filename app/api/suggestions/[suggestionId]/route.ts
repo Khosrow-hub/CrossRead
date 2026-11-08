@@ -11,6 +11,7 @@ import {
   notifications,
 } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/auth/session";
+import { isUuid } from "@/lib/validators/uuid";
 
 const actionSchema = z.object({
   action: z.enum(["accept", "decline"]),
@@ -26,6 +27,12 @@ export async function PATCH(
   }
 
   const { suggestionId } = await params;
+  if (!isUuid(suggestionId)) {
+    return NextResponse.json(
+      { error: "Suggestion not found" },
+      { status: 404 }
+    );
+  }
 
   const suggestionRows = await db
     .select()
@@ -120,52 +127,61 @@ export async function PATCH(
 
   const annotation = annotationRows[0];
 
-  const [version] = await db
-    .insert(versions)
-    .values({
-      projectId: target.id,
-      authorId: user.id,
-      message: `Accepted a suggestion from another reader`,
-    })
-    .returning({ id: versions.id });
+  try {
+    await db.transaction(async (tx) => {
+      const [version] = await tx
+        .insert(versions)
+        .values({
+          projectId: target.id,
+          authorId: user.id,
+          message: `Accepted a suggestion from another reader`,
+        })
+        .returning({ id: versions.id });
 
-  await db.insert(versionEdits).values({
-    versionId: version.id,
-    annotationId: annotation.id,
-    action: "update",
-    beforeData: {
-      type: annotation.type,
-      content: annotation.content,
-      passageId: annotation.passageId,
-    },
-    afterData: {
-      type: annotation.type,
-      content: suggestion.proposedContent,
-      passageId: annotation.passageId,
-    },
-  });
+      await tx.insert(versionEdits).values({
+        versionId: version.id,
+        annotationId: annotation.id,
+        action: "update",
+        beforeData: {
+          type: annotation.type,
+          content: annotation.content,
+          passageId: annotation.passageId,
+        },
+        afterData: {
+          type: annotation.type,
+          content: suggestion.proposedContent,
+          passageId: annotation.passageId,
+        },
+      });
 
-  await db
-    .update(annotations)
-    .set({
-      content: suggestion.proposedContent,
-      updatedAt: new Date(),
-    })
-    .where(eq(annotations.id, annotation.id));
+      await tx
+        .update(annotations)
+        .set({
+          content: suggestion.proposedContent,
+          updatedAt: new Date(),
+        })
+        .where(eq(annotations.id, annotation.id));
 
-  await db
-    .update(suggestions)
-    .set({ status: "accepted", updatedAt: new Date() })
-    .where(eq(suggestions.id, suggestionId));
+      await tx
+        .update(suggestions)
+        .set({ status: "accepted", updatedAt: new Date() })
+        .where(eq(suggestions.id, suggestionId));
 
-  if (suggestion.authorId !== user.id) {
-    await db.insert(notifications).values({
-      userId: suggestion.authorId,
-      actorId: user.id,
-      type: "suggestion_accepted",
-      projectId: target.id,
-      suggestionId: suggestion.id,
+      if (suggestion.authorId !== user.id) {
+        await tx.insert(notifications).values({
+          userId: suggestion.authorId,
+          actorId: user.id,
+          type: "suggestion_accepted",
+          projectId: target.id,
+          suggestionId: suggestion.id,
+        });
+      }
     });
+  } catch {
+    return NextResponse.json(
+      { error: "Something went wrong" },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({ ok: true, status: "accepted" });

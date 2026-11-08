@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
 import { eq, and, asc } from "drizzle-orm";
 import { db } from "@/lib/db";
-import {
-  versions,
-  versionEdits,
-  projects,
-} from "@/lib/db/schema";
+import { versions, versionEdits, projects } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/auth/session";
+import { isUuid } from "@/lib/validators/uuid";
 
 export async function GET(
   _request: Request,
@@ -20,6 +17,9 @@ export async function GET(
   }
 
   const { projectId, versionId } = await params;
+  if (!isUuid(projectId) || !isUuid(versionId)) {
+    return NextResponse.json({ error: "Version not found" }, { status: 404 });
+  }
 
   const projectRows = await db
     .select({

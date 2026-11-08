@@ -9,6 +9,7 @@ import {
   notifications,
 } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/auth/session";
+import { isUuid } from "@/lib/validators/uuid";
 
 const createSuggestionSchema = z.object({
   targetAnnotationId: z.string().uuid(),
@@ -26,6 +27,9 @@ export async function POST(
   }
 
   const { projectId } = await params;
+  if (!isUuid(projectId)) {
+    return NextResponse.json({ error: "Project not found" }, { status: 404 });
+  }
 
   const sourceRows = await db
     .select()
