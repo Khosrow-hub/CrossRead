@@ -14,6 +14,7 @@ import {
 import { requireUser } from "@/lib/auth/require-user";
 import { ForkButton } from "@/features/projects/components/ForkButton";
 import { SuggestionsPanel } from "@/features/suggestions/components/SuggestionsPanel";
+import { isUuid } from "@/lib/validators/uuid";
 
 export default async function ProjectOverviewPage({
   params,
@@ -22,6 +23,7 @@ export default async function ProjectOverviewPage({
 }) {
   const user = await requireUser();
   const { projectId } = await params;
+  if (!isUuid(projectId)) notFound();
 
   const projectRows = await db
     .select({
@@ -152,7 +154,10 @@ export default async function ProjectOverviewPage({
         createdAt: suggestions.createdAt,
       })
       .from(suggestions)
-      .innerJoin(annotations, eq(suggestions.targetAnnotationId, annotations.id))
+      .innerJoin(
+        annotations,
+        eq(suggestions.targetAnnotationId, annotations.id)
+      )
       .innerJoin(users, eq(suggestions.authorId, users.id))
       .where(
         and(
@@ -212,7 +217,8 @@ export default async function ProjectOverviewPage({
                 marginBottom: "0.4rem",
               }}
             >
-              Reading project by {project.ownerDisplayName ?? project.ownerUsername}
+              Reading project by{" "}
+              {project.ownerDisplayName ?? project.ownerUsername}
             </div>
             <h1
               style={{
@@ -240,7 +246,8 @@ export default async function ProjectOverviewPage({
                 >
                   {parentInfo.name}
                 </Link>{" "}
-                by {parentInfo.ownerDisplayName ?? parentInfo.ownerUsername}
+                by{" "}
+                {parentInfo.ownerDisplayName ?? parentInfo.ownerUsername}
               </div>
             )}
             <div
@@ -308,7 +315,10 @@ export default async function ProjectOverviewPage({
         <StatCard label="Versions" value={versionCount} />
         <StatCard label="Continuing from this" value={visibleForks.length} />
         {isOwner && (
-          <StatCard label="Open suggestions" value={pendingSuggestions.length} />
+          <StatCard
+            label="Open suggestions"
+            value={pendingSuggestions.length}
+          />
         )}
       </div>
 

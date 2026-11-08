@@ -4,6 +4,7 @@ import { eq, and, desc } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { projects, books, versions } from "@/lib/db/schema";
 import { requireUser } from "@/lib/auth/require-user";
+import { isUuid } from "@/lib/validators/uuid";
 
 export default async function ProjectVersionsPage({
   params,
@@ -12,21 +13,28 @@ export default async function ProjectVersionsPage({
 }) {
   const user = await requireUser();
   const { projectId } = await params;
+  if (!isUuid(projectId)) notFound();
 
   const projectRows = await db
     .select({
       id: projects.id,
       name: projects.name,
+      ownerId: projects.ownerId,
+      visibility: projects.visibility,
       bookTitle: books.title,
       bookAuthor: books.author,
     })
     .from(projects)
     .innerJoin(books, eq(projects.bookId, books.id))
-    .where(and(eq(projects.id, projectId), eq(projects.ownerId, user.id)))
+    .where(eq(projects.id, projectId))
     .limit(1);
 
   if (projectRows.length === 0) notFound();
   const project = projectRows[0];
+
+  const canView =
+    project.ownerId === user.id || project.visibility === "public";
+  if (!canView) notFound();
 
   const rows = await db
     .select({

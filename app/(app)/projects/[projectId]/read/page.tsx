@@ -11,6 +11,7 @@ import {
 } from "@/lib/db/schema";
 import { requireUser } from "@/lib/auth/require-user";
 import Reader from "@/features/reading/components/Reader";
+import { isUuid } from "@/lib/validators/uuid";
 
 export default async function ReadPage({
   params,
@@ -19,6 +20,7 @@ export default async function ReadPage({
 }) {
   const user = await requireUser();
   const { projectId } = await params;
+  if (!isUuid(projectId)) notFound();
 
   const projectRows = await db
     .select({

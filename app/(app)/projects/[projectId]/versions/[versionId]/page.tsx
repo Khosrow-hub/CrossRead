@@ -9,6 +9,7 @@ import {
   versionEdits,
 } from "@/lib/db/schema";
 import { requireUser } from "@/lib/auth/require-user";
+import { isUuid } from "@/lib/validators/uuid";
 
 type Snapshot = {
   type: string;
@@ -23,6 +24,7 @@ export default async function VersionDetailPage({
 }) {
   const user = await requireUser();
   const { projectId, versionId } = await params;
+  if (!isUuid(projectId) || !isUuid(versionId)) notFound();
 
   const versionRows = await db
     .select({
@@ -30,6 +32,8 @@ export default async function VersionDetailPage({
       message: versions.message,
       createdAt: versions.createdAt,
       projectName: projects.name,
+      projectOwnerId: projects.ownerId,
+      projectVisibility: projects.visibility,
       bookTitle: books.title,
       bookAuthor: books.author,
     })
@@ -37,16 +41,16 @@ export default async function VersionDetailPage({
     .innerJoin(projects, eq(versions.projectId, projects.id))
     .innerJoin(books, eq(projects.bookId, books.id))
     .where(
-      and(
-        eq(versions.id, versionId),
-        eq(versions.projectId, projectId),
-        eq(projects.ownerId, user.id)
-      )
+      and(eq(versions.id, versionId), eq(versions.projectId, projectId))
     )
     .limit(1);
 
   if (versionRows.length === 0) notFound();
   const version = versionRows[0];
+
+  const canView =
+    version.projectOwnerId === user.id || version.projectVisibility === "public";
+  if (!canView) notFound();
 
   const edits = await db
     .select({
