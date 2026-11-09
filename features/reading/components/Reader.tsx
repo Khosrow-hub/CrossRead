@@ -77,6 +77,18 @@ type SuggestState = {
   note: string;
 } | null;
 
+type ReaderSettings = {
+  fontSize: number;
+  lineHeight: number;
+  width: "narrow" | "medium" | "wide";
+};
+
+const DEFAULT_SETTINGS: ReaderSettings = {
+  fontSize: 18,
+  lineHeight: 1.75,
+  width: "medium",
+};
+
 function buildHighlightSegments(
   text: string,
   annotations: Annotation[]
@@ -144,8 +156,40 @@ export default function Reader({
   const [historyCache, setHistoryCache] = useState<Record<string, HistoryEntry[]>>({});
   const [historyLoading, setHistoryLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [settings, setSettings] = useState<ReaderSettings>(DEFAULT_SETTINGS);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const lastReportedChapterRef = useRef<string | null>(initialLocation);
+
+  useEffect(() => {
+    const raw = window.localStorage.getItem("crossread_reader_settings");
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw) as Partial<ReaderSettings>;
+        setSettings({
+          fontSize:
+            typeof parsed.fontSize === "number" && parsed.fontSize >= 14 && parsed.fontSize <= 28
+              ? parsed.fontSize
+              : DEFAULT_SETTINGS.fontSize,
+          lineHeight:
+            typeof parsed.lineHeight === "number" && parsed.lineHeight >= 1.2 && parsed.lineHeight <= 2.4
+              ? parsed.lineHeight
+              : DEFAULT_SETTINGS.lineHeight,
+          width:
+            parsed.width === "narrow" ||
+            parsed.width === "medium" ||
+            parsed.width === "wide"
+              ? parsed.width
+              : DEFAULT_SETTINGS.width,
+        });
+      } catch {}
+    }
+  }, []);
+
+  function updateSettings(next: ReaderSettings) {
+    setSettings(next);
+    window.localStorage.setItem("crossread_reader_settings", JSON.stringify(next));
+  }
 
   useEffect(() => {
     function update() {
@@ -412,6 +456,8 @@ export default function Reader({
 
   const canSuggest = forkedFromId !== null;
   const bottomOffset = isMobile ? "5rem" : "6rem";
+  const readingWidth =
+    settings.width === "narrow" ? "32rem" : settings.width === "wide" ? "56rem" : "44rem";
 
   return (
     <div
@@ -436,6 +482,32 @@ export default function Reader({
           {suggestSuccess}
         </div>
       )}
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          alignItems: "center",
+          gap: "0.5rem",
+        }}
+      >
+        <button
+          onClick={() => setSettingsOpen((v) => !v)}
+          className="nr-surface-sm"
+          style={{
+            padding: "0.5rem 0.85rem",
+            border: "none",
+            cursor: "pointer",
+            color: "var(--nr-text)",
+            fontSize: "0.85rem",
+            fontWeight: 700,
+            borderRadius: "0.6rem",
+          }}
+          title="Reading settings"
+        >
+          Aa
+        </button>
+      </div>
 
       <div
         className="nr-surface"
@@ -479,12 +551,15 @@ export default function Reader({
                       <p
                         data-passage-text
                         style={{
-                          fontSize: isMobile ? "0.95rem" : "1rem",
-                          lineHeight: 1.75,
+                          fontSize: `${settings.fontSize}px`,
+                          lineHeight: settings.lineHeight,
                           color: "var(--nr-text)",
                           margin: 0,
                           cursor: "text",
                           userSelect: "text",
+                          maxWidth: readingWidth,
+                          marginLeft: "auto",
+                          marginRight: "auto",
                         }}
                       >
                         {segments.map((seg, i) =>
@@ -492,7 +567,7 @@ export default function Reader({
                             <mark
                               key={i}
                               style={{
-                                background: "rgba(176, 228, 204, 0.35)",
+                                background: "rgba(122, 167, 232, 0.35)",
                                 borderRadius: "0.2rem",
                                 padding: "0 0.05rem",
                                 color: "inherit",
@@ -513,6 +588,9 @@ export default function Reader({
                             display: "flex",
                             flexDirection: "column",
                             gap: "0.5rem",
+                            maxWidth: readingWidth,
+                            marginLeft: "auto",
+                            marginRight: "auto",
                           }}
                         >
                           {list.map((a) => {
@@ -718,7 +796,13 @@ export default function Reader({
                       {draft && draft.passageId === p.id && (
                         <div
                           className="nr-surface"
-                          style={{ padding: "1rem", marginTop: "0.75rem" }}
+                          style={{
+                            padding: "1rem",
+                            marginTop: "0.75rem",
+                            maxWidth: readingWidth,
+                            marginLeft: "auto",
+                            marginRight: "auto",
+                          }}
                         >
                           <div
                             style={{
@@ -824,6 +908,126 @@ export default function Reader({
               </button>
             )
           )}
+        </div>
+      )}
+
+      {settingsOpen && (
+        <div
+          className="nr-surface"
+          style={{
+            position: "fixed",
+            bottom: "1.5rem",
+            right: isMobile ? "1rem" : "1.5rem",
+            left: isMobile ? "1rem" : undefined,
+            width: isMobile ? undefined : "18rem",
+            padding: "1.25rem",
+            zIndex: 45,
+          }}
+        >
+          <div
+            style={{
+              fontSize: "0.85rem",
+              fontWeight: 700,
+              color: "var(--nr-text)",
+              marginBottom: "0.9rem",
+            }}
+          >
+            Reading settings
+          </div>
+
+          <div style={{ marginBottom: "0.9rem" }}>
+            <div
+              style={{
+                fontSize: "0.7rem",
+                color: "var(--nr-text-soft)",
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                marginBottom: "0.35rem",
+              }}
+            >
+              Font size
+            </div>
+            <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
+              {[16, 18, 20, 22, 24].map((size) => (
+                <button
+                  key={size}
+                  onClick={() => updateSettings({ ...settings, fontSize: size })}
+                  className="nr-button"
+                  style={{
+                    width: "auto",
+                    padding: "0.35rem 0.6rem",
+                    fontSize: "0.8rem",
+                    opacity: settings.fontSize === size ? 1 : 0.55,
+                  }}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ marginBottom: "0.9rem" }}>
+            <div
+              style={{
+                fontSize: "0.7rem",
+                color: "var(--nr-text-soft)",
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                marginBottom: "0.35rem",
+              }}
+            >
+              Line height
+            </div>
+            <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
+              {[1.5, 1.75, 2, 2.25].map((h) => (
+                <button
+                  key={h}
+                  onClick={() => updateSettings({ ...settings, lineHeight: h })}
+                  className="nr-button"
+                  style={{
+                    width: "auto",
+                    padding: "0.35rem 0.6rem",
+                    fontSize: "0.8rem",
+                    opacity: settings.lineHeight === h ? 1 : 0.55,
+                  }}
+                >
+                  {h}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div
+              style={{
+                fontSize: "0.7rem",
+                color: "var(--nr-text-soft)",
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                marginBottom: "0.35rem",
+              }}
+            >
+              Reading width
+            </div>
+            <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
+              {(["narrow", "medium", "wide"] as const).map((w) => (
+                <button
+                  key={w}
+                  onClick={() => updateSettings({ ...settings, width: w })}
+                  className="nr-button"
+                  style={{
+                    width: "auto",
+                    padding: "0.35rem 0.6rem",
+                    fontSize: "0.8rem",
+                    textTransform: "capitalize",
+                    opacity: settings.width === w ? 1 : 0.55,
+                  }}
+                >
+                  {w}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
