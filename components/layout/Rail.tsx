@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { useTheme } from "@/components/providers/ThemeProvider";
 
 type NavItem = {
   href: string;
@@ -42,6 +43,7 @@ export function Rail({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { theme, toggle } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [unread, setUnread] = useState(0);
@@ -315,6 +317,20 @@ export function Rail({
                 Settings
               </Link>
               <button
+                onClick={() => {
+                  toggle();
+                  setMenuOpen(false);
+                }}
+                className="nr-button"
+                style={{
+                  width: "100%",
+                  padding: "0.5rem",
+                  marginBottom: "0.5rem",
+                }}
+              >
+                {theme === "dark" ? "Switch to light" : "Switch to dark"}
+              </button>
+              <button
                 onClick={handleLogout}
                 className="nr-button"
                 style={{ width: "100%", padding: "0.5rem" }}
@@ -445,6 +461,24 @@ export function Rail({
           }
         )}
       </div>
+
+      <button
+        onClick={toggle}
+        className="nr-surface-sm"
+        style={{
+          height: "2.25rem",
+          borderRadius: "0.6rem",
+          border: "none",
+          cursor: "pointer",
+          color: "var(--nr-text)",
+          fontWeight: 700,
+          fontSize: "0.75rem",
+          letterSpacing: "0.05em",
+        }}
+        title="Toggle theme"
+      >
+        {theme === "dark" ? "Light" : "Dark"}
+      </button>
 
       <div ref={menuRef} style={{ position: "relative" }}>
         <button
