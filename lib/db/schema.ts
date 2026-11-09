@@ -211,6 +211,9 @@ export const annotations = pgTable(
       (): AnyPgColumn => annotations.id,
       { onDelete: "set null" }
     ),
+    startOffset: integer("start_offset"),
+    endOffset: integer("end_offset"),
+    selectedText: text("selected_text"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

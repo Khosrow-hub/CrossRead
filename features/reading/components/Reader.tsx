@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { getSelectionOffsets } from "@/features/reading/lib/selectionOffsets";
 
 type Chapter = {
   id: string;
@@ -26,6 +27,21 @@ type Annotation = {
   createdAt: string;
   isDraft: boolean;
   authorId: string;
+  startOffset: number | null;
+  endOffset: number | null;
+  selectedText: string | null;
+};
+
+type HistoryEntry = {
+  id: string;
+  action: "create" | "update" | "delete";
+  beforeData: { type?: string; content?: string } | null;
+  afterData: { type?: string; content?: string } | null;
+  createdAt: string;
+  versionId: string;
+  versionMessage: string;
+  authorUsername: string;
+  authorDisplayName: string | null;
 };
 
 type ReaderProps = {
@@ -42,11 +58,16 @@ type Draft = {
   passageId: string;
   type: AnnotationType;
   content: string;
+  startOffset: number | null;
+  endOffset: number | null;
+  selectedText: string | null;
 };
 
 type SelectionInfo = {
   passageId: string;
-  type: AnnotationType;
+  startOffset: number | null;
+  endOffset: number | null;
+  selectedText: string | null;
 };
 
 type SuggestState = {
@@ -55,6 +76,48 @@ type SuggestState = {
   proposedContent: string;
   note: string;
 } | null;
+
+function buildHighlightSegments(
+  text: string,
+  annotations: Annotation[]
+): { text: string; highlight: boolean }[] {
+  const ranges = annotations
+    .filter(
+      (a) =>
+        a.startOffset !== null &&
+        a.endOffset !== null &&
+        a.startOffset < a.endOffset &&
+        !a.isDraft
+    )
+    .map((a) => ({ start: a.startOffset as number, end: a.endOffset as number }))
+    .sort((a, b) => a.start - b.start);
+
+  if (ranges.length === 0) return [{ text, highlight: false }];
+
+  const merged: { start: number; end: number }[] = [];
+  for (const r of ranges) {
+    const last = merged[merged.length - 1];
+    if (last && r.start <= last.end) {
+      last.end = Math.max(last.end, r.end);
+    } else {
+      merged.push({ ...r });
+    }
+  }
+
+  const segments: { text: string; highlight: boolean }[] = [];
+  let cursor = 0;
+  for (const r of merged) {
+    if (r.start > cursor) {
+      segments.push({ text: text.slice(cursor, r.start), highlight: false });
+    }
+    segments.push({ text: text.slice(r.start, r.end), highlight: true });
+    cursor = r.end;
+  }
+  if (cursor < text.length) {
+    segments.push({ text: text.slice(cursor), highlight: false });
+  }
+  return segments;
+}
 
 export default function Reader({
   projectId,
@@ -77,13 +140,16 @@ export default function Reader({
   const [suggestSaving, setSuggestSaving] = useState(false);
   const [suggestError, setSuggestError] = useState<string | null>(null);
   const [suggestSuccess, setSuggestSuccess] = useState<string | null>(null);
+  const [historyOpenId, setHistoryOpenId] = useState<string | null>(null);
+  const [historyCache, setHistoryCache] = useState<Record<string, HistoryEntry[]>>({});
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const lastReportedChapterRef = useRef<string | null>(initialLocation);
 
   useEffect(() => {
     function update() {
-      setIsMobile(window.innerWidth < 1100);
+      setIsMobile(window.innerWidth < 900);
     }
     update();
     window.addEventListener("resize", update);
@@ -175,28 +241,18 @@ export default function Reader({
 
   useEffect(() => {
     function handleSelection() {
-      const sel = window.getSelection();
-      if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+      if (!containerRef.current) return;
+      const offsets = getSelectionOffsets(containerRef.current);
+      if (!offsets) {
         setSelection(null);
         return;
       }
-      const range = sel.getRangeAt(0);
-      const node = range.startContainer.parentElement;
-      if (!node) {
-        setSelection(null);
-        return;
-      }
-      const passageEl = node.closest("[data-passage-id]") as HTMLElement | null;
-      if (!passageEl || !containerRef.current?.contains(passageEl)) {
-        setSelection(null);
-        return;
-      }
-      const passageId = passageEl.dataset.passageId;
-      if (!passageId) {
-        setSelection(null);
-        return;
-      }
-      setSelection({ passageId, type: "highlight" });
+      setSelection({
+        passageId: offsets.passageId,
+        startOffset: offsets.startOffset,
+        endOffset: offsets.endOffset,
+        selectedText: offsets.selectedText,
+      });
     }
 
     document.addEventListener("mouseup", handleSelection);
@@ -221,13 +277,29 @@ export default function Reader({
 
   function beginAnnotation(type: AnnotationType) {
     if (!selection) return;
-    setDraft({ passageId: selection.passageId, type, content: "" });
+    setDraft({
+      passageId: selection.passageId,
+      type,
+      content: "",
+      startOffset: selection.startOffset,
+      endOffset: selection.endOffset,
+      selectedText: selection.selectedText,
+    });
     setSelection(null);
     window.getSelection()?.removeAllRanges();
   }
 
   async function submitDraft() {
-    if (!draft || draft.content.trim().length === 0) return;
+    if (!draft) return;
+
+    if (draft.type !== "highlight" && draft.content.trim().length === 0) {
+      return;
+    }
+
+    const content =
+      draft.type === "highlight" && draft.content.trim().length === 0
+        ? draft.selectedText ?? "Highlight"
+        : draft.content.trim();
 
     const res = await fetch(`/api/projects/${projectId}/annotations`, {
       method: "POST",
@@ -235,7 +307,10 @@ export default function Reader({
       body: JSON.stringify({
         passageId: draft.passageId,
         type: draft.type,
-        content: draft.content.trim(),
+        content,
+        startOffset: draft.startOffset ?? undefined,
+        endOffset: draft.endOffset ?? undefined,
+        selectedText: draft.selectedText ?? undefined,
       }),
     });
 
@@ -268,6 +343,7 @@ export default function Reader({
       setSaveMessage("");
       setSaveBarOpen(false);
       setSaving(false);
+      setHistoryCache({});
       router.refresh();
     } catch {
       setSaveError("Could not save changes");
@@ -307,6 +383,30 @@ export default function Reader({
     } catch {
       setSuggestError("Could not send suggestion");
       setSuggestSaving(false);
+    }
+  }
+
+  async function toggleHistory(annotationId: string) {
+    if (historyOpenId === annotationId) {
+      setHistoryOpenId(null);
+      return;
+    }
+    setHistoryOpenId(annotationId);
+
+    if (historyCache[annotationId]) return;
+
+    setHistoryLoading(true);
+    try {
+      const res = await fetch(`/api/annotations/${annotationId}/history`);
+      if (!res.ok) {
+        setHistoryLoading(false);
+        return;
+      }
+      const data = await res.json();
+      setHistoryCache((prev) => ({ ...prev, [annotationId]: data.history }));
+      setHistoryLoading(false);
+    } catch {
+      setHistoryLoading(false);
     }
   }
 
@@ -373,9 +473,11 @@ export default function Reader({
               >
                 {chapterPassages.map((p) => {
                   const list = annotationsByPassage.get(p.id) ?? [];
+                  const segments = buildHighlightSegments(p.text, list);
                   return (
                     <div key={p.id} data-passage-id={p.id}>
                       <p
+                        data-passage-text
                         style={{
                           fontSize: isMobile ? "0.95rem" : "1rem",
                           lineHeight: 1.75,
@@ -385,7 +487,23 @@ export default function Reader({
                           userSelect: "text",
                         }}
                       >
-                        {p.text}
+                        {segments.map((seg, i) =>
+                          seg.highlight ? (
+                            <mark
+                              key={i}
+                              style={{
+                                background: "rgba(176, 228, 204, 0.35)",
+                                borderRadius: "0.2rem",
+                                padding: "0 0.05rem",
+                                color: "inherit",
+                              }}
+                            >
+                              {seg.text}
+                            </mark>
+                          ) : (
+                            <span key={i}>{seg.text}</span>
+                          )
+                        )}
                       </p>
 
                       {list.length > 0 && (
@@ -399,6 +517,8 @@ export default function Reader({
                         >
                           {list.map((a) => {
                             const isOwn = a.authorId === currentUserId;
+                            const isHistoryOpen = historyOpenId === a.id;
+                            const entries = historyCache[a.id] ?? [];
                             return (
                               <div
                                 key={a.id}
@@ -418,21 +538,153 @@ export default function Reader({
                                     marginBottom: "0.3rem",
                                     display: "flex",
                                     justifyContent: "space-between",
+                                    alignItems: "center",
+                                    gap: "0.5rem",
                                   }}
                                 >
                                   <span>{a.type}</span>
-                                  {a.isDraft && (
-                                    <span
-                                      style={{
-                                        color: "var(--nr-accent)",
-                                        fontWeight: 700,
-                                      }}
-                                    >
-                                      Unsaved
-                                    </span>
-                                  )}
+                                  <button
+                                    onClick={() => toggleHistory(a.id)}
+                                    style={{
+                                      background: "transparent",
+                                      border: "none",
+                                      padding: 0,
+                                      fontSize: "0.7rem",
+                                      fontWeight: 600,
+                                      color: "var(--nr-text-soft)",
+                                      cursor: "pointer",
+                                      textTransform: "uppercase",
+                                      letterSpacing: "0.08em",
+                                    }}
+                                  >
+                                    {isHistoryOpen ? "Hide history" : "History"}
+                                  </button>
                                 </div>
-                                {a.content}
+                                {a.selectedText && (
+                                  <div
+                                    style={{
+                                      fontSize: "0.8rem",
+                                      color: "var(--nr-text-soft)",
+                                      fontStyle: "italic",
+                                      marginBottom: "0.35rem",
+                                    }}
+                                  >
+                                    &ldquo;{a.selectedText}&rdquo;
+                                  </div>
+                                )}
+                                {a.type !== "highlight" && a.content}
+                                {a.isDraft && (
+                                  <div
+                                    style={{
+                                      fontSize: "0.7rem",
+                                      color: "var(--nr-accent)",
+                                      fontWeight: 700,
+                                      marginTop: "0.35rem",
+                                      textTransform: "uppercase",
+                                      letterSpacing: "0.08em",
+                                    }}
+                                  >
+                                    Unsaved
+                                  </div>
+                                )}
+
+                                {isHistoryOpen && (
+                                  <div
+                                    style={{
+                                      marginTop: "0.75rem",
+                                      borderTop: "1px solid var(--nr-shadow-dark)",
+                                      paddingTop: "0.75rem",
+                                    }}
+                                  >
+                                    {historyLoading && entries.length === 0 ? (
+                                      <div
+                                        style={{
+                                          fontSize: "0.8rem",
+                                          color: "var(--nr-text-soft)",
+                                        }}
+                                      >
+                                        Loading history
+                                      </div>
+                                    ) : entries.length === 0 ? (
+                                      <div
+                                        style={{
+                                          fontSize: "0.8rem",
+                                          color: "var(--nr-text-soft)",
+                                          fontStyle: "italic",
+                                        }}
+                                      >
+                                        No saved changes yet.
+                                      </div>
+                                    ) : (
+                                      <ul
+                                        style={{
+                                          listStyle: "none",
+                                          padding: 0,
+                                          margin: 0,
+                                          display: "flex",
+                                          flexDirection: "column",
+                                          gap: "0.5rem",
+                                        }}
+                                      >
+                                        {entries.map((e) => {
+                                          const author =
+                                            e.authorDisplayName ??
+                                            e.authorUsername;
+                                          return (
+                                            <li
+                                              key={e.id}
+                                              style={{
+                                                fontSize: "0.8rem",
+                                                color: "var(--nr-text)",
+                                              }}
+                                            >
+                                              <div style={{ fontWeight: 600 }}>
+                                                {author} · {e.action} ·{" "}
+                                                {new Date(
+                                                  e.createdAt
+                                                ).toLocaleString()}
+                                              </div>
+                                              <div
+                                                style={{
+                                                  fontSize: "0.75rem",
+                                                  color: "var(--nr-text-soft)",
+                                                  marginTop: "0.15rem",
+                                                }}
+                                              >
+                                                {e.versionMessage}
+                                              </div>
+                                              {e.beforeData?.content && (
+                                                <div
+                                                  style={{
+                                                    fontSize: "0.8rem",
+                                                    color: "var(--nr-text-soft)",
+                                                    textDecoration:
+                                                      "line-through",
+                                                    marginTop: "0.35rem",
+                                                  }}
+                                                >
+                                                  {e.beforeData.content}
+                                                </div>
+                                              )}
+                                              {e.afterData?.content && (
+                                                <div
+                                                  style={{
+                                                    fontSize: "0.8rem",
+                                                    color: "var(--nr-text)",
+                                                    marginTop: "0.2rem",
+                                                  }}
+                                                >
+                                                  {e.afterData.content}
+                                                </div>
+                                              )}
+                                            </li>
+                                          );
+                                        })}
+                                      </ul>
+                                    )}
+                                  </div>
+                                )}
+
                                 {!isOwn && canSuggest && (
                                   <div style={{ marginTop: "0.5rem" }}>
                                     <button
@@ -478,17 +730,33 @@ export default function Reader({
                             }}
                           >
                             {draft.type}
+                            {draft.selectedText && (
+                              <span
+                                style={{
+                                  textTransform: "none",
+                                  letterSpacing: 0,
+                                  fontStyle: "italic",
+                                  marginLeft: "0.5rem",
+                                }}
+                              >
+                                on &ldquo;{draft.selectedText.slice(0, 60)}
+                                {draft.selectedText.length > 60 ? "..." : ""}
+                                &rdquo;
+                              </span>
+                            )}
                           </div>
-                          <textarea
-                            className="nr-input"
-                            rows={3}
-                            placeholder="Write your thought"
-                            value={draft.content}
-                            onChange={(e) =>
-                              setDraft({ ...draft, content: e.target.value })
-                            }
-                            autoFocus
-                          />
+                          {draft.type !== "highlight" && (
+                            <textarea
+                              className="nr-input"
+                              rows={3}
+                              placeholder="Write your thought"
+                              value={draft.content}
+                              onChange={(e) =>
+                                setDraft({ ...draft, content: e.target.value })
+                              }
+                              autoFocus
+                            />
+                          )}
                           <div
                             style={{
                               display: "flex",

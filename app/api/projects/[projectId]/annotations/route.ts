@@ -10,6 +10,9 @@ const createAnnotationSchema = z.object({
   passageId: z.string().uuid(),
   type: z.enum(["highlight", "note", "question", "interpretation"]),
   content: z.string().min(1, "Write something").max(4000),
+  startOffset: z.number().int().min(0).optional(),
+  endOffset: z.number().int().min(0).optional(),
+  selectedText: z.string().max(4000).optional(),
 });
 
 export async function POST(
@@ -75,6 +78,11 @@ export async function POST(
         authorId: user.id,
         type: parsed.data.type,
         content: parsed.data.content,
+        isDraft: true,
+        pendingAction: "create",
+        startOffset: parsed.data.startOffset ?? null,
+        endOffset: parsed.data.endOffset ?? null,
+        selectedText: parsed.data.selectedText ?? null,
       })
       .returning({
         id: annotations.id,
@@ -84,6 +92,9 @@ export async function POST(
         createdAt: annotations.createdAt,
         isDraft: annotations.isDraft,
         authorId: annotations.authorId,
+        startOffset: annotations.startOffset,
+        endOffset: annotations.endOffset,
+        selectedText: annotations.selectedText,
       });
 
     return NextResponse.json({ annotation: created }, { status: 201 });

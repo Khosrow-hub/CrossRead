@@ -76,6 +76,9 @@ export default async function ReadPage({
       createdAt: annotations.createdAt,
       isDraft: annotations.isDraft,
       authorId: annotations.authorId,
+      startOffset: annotations.startOffset,
+      endOffset: annotations.endOffset,
+      selectedText: annotations.selectedText,
     })
     .from(annotations)
     .where(

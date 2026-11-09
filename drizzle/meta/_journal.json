@@ -64,6 +64,13 @@
       "when": 1794252299545,
       "tag": "0008_regular_blob",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794253158762,
+      "tag": "0009_useful_the_enforcers",
+      "breakpoints": true
     }
   ]
 }
