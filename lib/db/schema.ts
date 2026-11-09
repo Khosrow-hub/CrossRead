@@ -44,6 +44,12 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   "project_forked",
 ]);
 
+export const pendingActionEnum = pgEnum("pending_action", [
+  "create",
+  "update",
+  "delete",
+]);
+
 export const users = pgTable(
   "users",
   {
@@ -200,6 +206,7 @@ export const annotations = pgTable(
     content: text("content").notNull(),
     isDeleted: boolean("is_deleted").notNull().default(false),
     isDraft: boolean("is_draft").notNull().default(true),
+    pendingAction: pendingActionEnum("pending_action"),
     forkedFromAnnotationId: uuid("forked_from_annotation_id").references(
       (): AnyPgColumn => annotations.id,
       { onDelete: "set null" }
@@ -219,6 +226,10 @@ export const annotations = pgTable(
     projectIdx: index("annotations_project_idx").on(table.projectId),
     forkedFromAnnotationIdx: index("annotations_forked_from_annotation_idx").on(
       table.forkedFromAnnotationId
+    ),
+    pendingActionIdx: index("annotations_pending_action_idx").on(
+      table.projectId,
+      table.pendingAction
     ),
   })
 );

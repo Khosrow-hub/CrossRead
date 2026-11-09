@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNotNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { projects, annotations, versions, versionEdits } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -49,28 +49,33 @@ export async function POST(
     );
   }
 
-  const draftRows = await db
+  const pendingRows = await db
     .select()
     .from(annotations)
     .where(
       and(
         eq(annotations.projectId, projectId),
-        eq(annotations.isDraft, true),
-        eq(annotations.isDeleted, false)
+        isNotNull(annotations.pendingAction)
       )
     );
 
-  if (draftRows.length === 0) {
-    return NextResponse.json(
-      { error: "Nothing to save" },
-      { status: 400 }
-    );
+  if (pendingRows.length === 0) {
+    return NextResponse.json({ error: "Nothing to save" }, { status: 400 });
   }
+
+  const creates = pendingRows.filter((r) => r.pendingAction === "create").length;
+  const updates = pendingRows.filter((r) => r.pendingAction === "update").length;
+  const deletes = pendingRows.filter((r) => r.pendingAction === "delete").length;
+
+  const autoParts: string[] = [];
+  if (creates > 0) autoParts.push(`${creates} new`);
+  if (updates > 0) autoParts.push(`${updates} edited`);
+  if (deletes > 0) autoParts.push(`${deletes} deleted`);
 
   const message =
     parsed.data.message && parsed.data.message.trim().length > 0
       ? parsed.data.message.trim()
-      : `Saved ${draftRows.length} change${draftRows.length === 1 ? "" : "s"}`;
+      : `Saved ${autoParts.join(", ")}`;
 
   try {
     const result = await db.transaction(async (tx) => {
@@ -87,27 +92,83 @@ export async function POST(
           createdAt: versions.createdAt,
         });
 
-      for (const annotation of draftRows) {
-        await tx.insert(versionEdits).values({
-          versionId: version.id,
-          annotationId: annotation.id,
-          action: "create",
-          beforeData: null,
-          afterData: {
-            type: annotation.type,
-            content: annotation.content,
-            passageId: annotation.passageId,
-          },
-        });
+      for (const annotation of pendingRows) {
+        if (annotation.pendingAction === "create") {
+          await tx.insert(versionEdits).values({
+            versionId: version.id,
+            annotationId: annotation.id,
+            action: "create",
+            beforeData: null,
+            afterData: {
+              type: annotation.type,
+              content: annotation.content,
+              passageId: annotation.passageId,
+            },
+          });
+        }
+
+        if (annotation.pendingAction === "update") {
+          const lastEditRows = await tx
+            .select({ afterData: versionEdits.afterData })
+            .from(versionEdits)
+            .where(eq(versionEdits.annotationId, annotation.id))
+            .orderBy(versionEdits.createdAt);
+
+          let before: unknown = null;
+          if (lastEditRows.length > 0) {
+            for (const row of lastEditRows) {
+              if (row.afterData) before = row.afterData;
+            }
+          }
+
+          await tx.insert(versionEdits).values({
+            versionId: version.id,
+            annotationId: annotation.id,
+            action: "update",
+            beforeData: before,
+            afterData: {
+              type: annotation.type,
+              content: annotation.content,
+              passageId: annotation.passageId,
+            },
+          });
+        }
+
+        if (annotation.pendingAction === "delete") {
+          const lastEditRows = await tx
+            .select({ afterData: versionEdits.afterData })
+            .from(versionEdits)
+            .where(eq(versionEdits.annotationId, annotation.id))
+            .orderBy(versionEdits.createdAt);
+
+          let before: unknown = null;
+          if (lastEditRows.length > 0) {
+            for (const row of lastEditRows) {
+              if (row.afterData) before = row.afterData;
+            }
+          }
+
+          await tx.insert(versionEdits).values({
+            versionId: version.id,
+            annotationId: annotation.id,
+            action: "delete",
+            beforeData: before,
+            afterData: null,
+          });
+        }
       }
 
       await tx
         .update(annotations)
-        .set({ isDraft: false, updatedAt: new Date() })
+        .set({
+          pendingAction: null,
+          isDraft: false,
+          updatedAt: new Date(),
+        })
         .where(
           and(
             eq(annotations.projectId, projectId),
-            eq(annotations.isDraft, true)
+            isNotNull(annotations.pendingAction)
           )
         );
 
