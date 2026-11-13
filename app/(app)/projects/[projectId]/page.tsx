@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { eq, and, desc, count } from "drizzle-orm";
+import { eq, and, ne, desc, count } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   projects,
@@ -96,6 +96,18 @@ export default async function ProjectOverviewPage({
     (f) => f.visibility === "public" || f.ownerUsername === user.username
   );
 
+  const otherPublicCountRows = await db
+    .select({ value: count() })
+    .from(projects)
+    .where(
+      and(
+        eq(projects.bookId, project.bookId),
+        eq(projects.visibility, "public"),
+        ne(projects.id, projectId)
+      )
+    );
+  const otherPublicCount = otherPublicCountRows[0]?.value ?? 0;
+
   const chapterRows = await db
     .select({ id: chapters.id })
     .from(chapters)
@@ -179,6 +191,9 @@ export default async function ProjectOverviewPage({
       createdAt: s.createdAt.toISOString(),
     }));
   }
+
+  const canCompare =
+    project.visibility === "public" && otherPublicCount > 0;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
@@ -317,6 +332,15 @@ export default async function ProjectOverviewPage({
                 </>
               )}
               {!isOwner && <ForkButton projectId={project.id} />}
+              {canCompare && (
+                <Link
+                  href={`/projects/${project.id}/compare`}
+                  className="nr-button"
+                  style={{ width: "auto", textDecoration: "none" }}
+                >
+                  Compare with another reading
+                </Link>
+              )}
               <Link
                 href={`/books/${project.bookSlug}`}
                 className="nr-link"
