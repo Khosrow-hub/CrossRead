@@ -16,6 +16,13 @@ import { ForkButton } from "@/features/projects/components/ForkButton";
 import { SuggestionsPanel } from "@/features/suggestions/components/SuggestionsPanel";
 import { isUuid } from "@/lib/validators/uuid";
 
+type Ancestor = {
+  id: string;
+  name: string;
+  ownerDisplayName: string | null;
+  ownerUsername: string;
+};
+
 export default async function ProjectOverviewPage({
   params,
 }: {
@@ -57,26 +64,45 @@ export default async function ProjectOverviewPage({
   const canView = project.visibility === "public" || isOwner;
   if (!canView) notFound();
 
-  let parentInfo: {
-    id: string;
-    name: string;
-    ownerDisplayName: string | null;
-    ownerUsername: string;
-  } | null = null;
-  if (project.forkedFromId) {
-    const parentRows = await db
+  const ancestry: Ancestor[] = [];
+  let currentParentId = project.forkedFromId;
+  const seen = new Set<string>();
+  let depth = 0;
+  while (currentParentId && !seen.has(currentParentId) && depth < 10) {
+    seen.add(currentParentId);
+    depth += 1;
+    const rows = await db
       .select({
         id: projects.id,
         name: projects.name,
+        forkedFromId: projects.forkedFromId,
+        visibility: projects.visibility,
+        ownerId: projects.ownerId,
         ownerDisplayName: users.displayName,
         ownerUsername: users.username,
       })
       .from(projects)
       .innerJoin(users, eq(projects.ownerId, users.id))
-      .where(eq(projects.id, project.forkedFromId))
+      .where(eq(projects.id, currentParentId))
       .limit(1);
-    parentInfo = parentRows[0] ?? null;
+
+    if (rows.length === 0) break;
+    const row = rows[0];
+    const canSeeParent =
+      row.visibility === "public" || row.ownerId === user.id;
+    if (!canSeeParent) break;
+
+    ancestry.push({
+      id: row.id,
+      name: row.name,
+      ownerDisplayName: row.ownerDisplayName,
+      ownerUsername: row.ownerUsername,
+    });
+
+    currentParentId = row.forkedFromId;
   }
+
+  ancestry.reverse();
 
   const forks = await db
     .select({
@@ -264,32 +290,65 @@ export default async function ProjectOverviewPage({
             >
               {project.name}
             </h1>
-            {parentInfo && (
+
+            {ancestry.length > 0 && (
               <div
                 style={{
                   fontSize: "0.85rem",
                   color: "var(--nr-text-soft)",
                   marginBottom: "0.5rem",
+                  lineHeight: 1.7,
                 }}
               >
-                A version of{" "}
-                <Link
-                  href={`/projects/${parentInfo.id}`}
-                  className="nr-link"
-                  style={{ fontSize: "0.85rem" }}
+                <span
+                  style={{
+                    fontSize: "0.7rem",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                    marginRight: "0.5rem",
+                  }}
                 >
-                  {parentInfo.name}
-                </Link>{" "}
-                by{" "}
-                <Link
-                  href={`/u/${parentInfo.ownerUsername}`}
-                  className="nr-link"
-                  style={{ fontSize: "0.85rem" }}
-                >
-                  {parentInfo.ownerDisplayName ?? parentInfo.ownerUsername}
-                </Link>
+                  Forked from
+                </span>
+                {ancestry.map((a, i) => (
+                  <span key={a.id}>
+                    <Link
+                      href={`/projects/${a.id}`}
+                      className="nr-link"
+                      style={{ fontSize: "0.85rem" }}
+                    >
+                      {a.name}
+                    </Link>{" "}
+                    <span
+                      style={{
+                        fontSize: "0.8rem",
+                        opacity: 0.7,
+                      }}
+                    >
+                      by{" "}
+                      <Link
+                        href={`/u/${a.ownerUsername}`}
+                        className="nr-link"
+                        style={{ fontSize: "0.85rem" }}
+                      >
+                        {a.ownerDisplayName ?? a.ownerUsername}
+                      </Link>
+                    </span>
+                    {i < ancestry.length - 1 && (
+                      <span
+                        style={{
+                          margin: "0 0.4rem",
+                          opacity: 0.5,
+                        }}
+                      >
+                        →
+                      </span>
+                    )}
+                  </span>
+                ))}
               </div>
             )}
+
             <div
               style={{
                 fontSize: "1rem",
