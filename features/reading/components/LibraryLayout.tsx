@@ -7,6 +7,7 @@ type Current = {
   projectId: string;
   bookTitle: string;
   bookAuthor: string;
+  bookCover: string | null;
   currentLocation: string | null;
   progressPercentage: number;
   lastReadAt: string;
@@ -131,9 +132,22 @@ function ContinueReadingCard({
               fontWeight: 700,
               color: "var(--nr-text-soft)",
               flexShrink: 0,
+              overflow: "hidden",
             }}
           >
-            {current.bookTitle.charAt(0)}
+            {current.bookCover ? (
+              <img
+                src={current.bookCover}
+                alt=""
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                }}
+              />
+            ) : (
+              current.bookTitle.charAt(0)
+            )}
           </div>
 
           <div
@@ -365,7 +379,7 @@ function RightCard({
         padding: "0.95rem 1rem",
         display: "flex",
         flexDirection: "column",
-        background: highlighted ? "#eceff4" : undefined,
+        background: highlighted ? "var(--nr-surface-raised)" : undefined,
         minHeight: "4rem",
       }}
     >

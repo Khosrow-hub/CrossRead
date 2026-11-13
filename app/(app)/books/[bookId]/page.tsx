@@ -63,9 +63,22 @@ export default async function BookDetailPage({
               fontWeight: 700,
               color: "var(--nr-text-soft)",
               flexShrink: 0,
+              overflow: "hidden",
             }}
           >
-            {book.title.charAt(0)}
+            {book.coverUrl ? (
+              <img
+                src={book.coverUrl}
+                alt=""
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                }}
+              />
+            ) : (
+              book.title.charAt(0)
+            )}
           </div>
           <div style={{ flex: 1, minWidth: "16rem" }}>
             <h1

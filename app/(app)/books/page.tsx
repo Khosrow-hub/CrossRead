@@ -115,9 +115,22 @@ export default async function BooksPage({
                   fontWeight: 700,
                   color: "var(--nr-text-soft)",
                   flexShrink: 0,
+                  overflow: "hidden",
                 }}
               >
-                {b.title.charAt(0)}
+                {b.coverUrl ? (
+                  <img
+                    src={b.coverUrl}
+                    alt=""
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                    }}
+                  />
+                ) : (
+                  b.title.charAt(0)
+                )}
               </div>
               <div style={{ flex: 1, minWidth: "16rem" }}>
                 <Link

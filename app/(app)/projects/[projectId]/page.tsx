@@ -42,6 +42,7 @@ export default async function ProjectOverviewPage({
       bookTitle: books.title,
       bookAuthor: books.author,
       bookDescription: books.description,
+      bookCoverUrl: books.coverUrl,
     })
     .from(projects)
     .innerJoin(books, eq(projects.bookId, books.id))
@@ -203,9 +204,22 @@ export default async function ProjectOverviewPage({
               fontWeight: 700,
               color: "var(--nr-text-soft)",
               flexShrink: 0,
+              overflow: "hidden",
             }}
           >
-            {project.bookTitle.charAt(0)}
+            {project.bookCoverUrl ? (
+              <img
+                src={project.bookCoverUrl}
+                alt=""
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                }}
+              />
+            ) : (
+              project.bookTitle.charAt(0)
+            )}
           </div>
           <div style={{ flex: 1, minWidth: "16rem" }}>
             <div

@@ -99,6 +99,7 @@ export const books = pgTable(
     author: text("author").notNull(),
     description: text("description"),
     coverUrl: text("cover_url"),
+    olKey: text("ol_key"),
     license: text("license").notNull().default("public-domain"),
     sourceUrl: text("source_url"),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -108,6 +109,7 @@ export const books = pgTable(
   (table) => ({
     slugIdx: uniqueIndex("books_slug_idx").on(table.slug),
     authorIdx: index("books_author_idx").on(table.author),
+    olKeyIdx: uniqueIndex("books_ol_key_idx").on(table.olKey),
   })
 );
 

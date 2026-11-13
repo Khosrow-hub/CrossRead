@@ -5,6 +5,7 @@
 :root {
   --nr-bg: #e0e5ec;
   --nr-surface: #e0e5ec;
+  --nr-surface-raised: #eceff4;
   --nr-text: #2e3a4a;
   --nr-text-soft: #6b7788;
   --nr-accent: #4a6fd4;
@@ -41,6 +42,7 @@
 [data-theme="dark"] {
   --nr-bg: #1a1d22;
   --nr-surface: #1a1d22;
+  --nr-surface-raised: #24282f;
   --nr-text: #dfe4ea;
   --nr-text-soft: #8a93a1;
   --nr-accent: #7aa7e8;
