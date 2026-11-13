@@ -232,7 +232,13 @@ export default async function ProjectOverviewPage({
               }}
             >
               Reading project by{" "}
-              {project.ownerDisplayName ?? project.ownerUsername}
+              <Link
+                href={`/u/${project.ownerUsername}`}
+                className="nr-link"
+                style={{ fontSize: "0.75rem" }}
+              >
+                {project.ownerDisplayName ?? project.ownerUsername}
+              </Link>
             </div>
             <h1
               style={{
@@ -261,7 +267,13 @@ export default async function ProjectOverviewPage({
                   {parentInfo.name}
                 </Link>{" "}
                 by{" "}
-                {parentInfo.ownerDisplayName ?? parentInfo.ownerUsername}
+                <Link
+                  href={`/u/${parentInfo.ownerUsername}`}
+                  className="nr-link"
+                  style={{ fontSize: "0.85rem" }}
+                >
+                  {parentInfo.ownerDisplayName ?? parentInfo.ownerUsername}
+                </Link>
               </div>
             )}
             <div
@@ -378,8 +390,15 @@ export default async function ProjectOverviewPage({
                     marginTop: "0.2rem",
                   }}
                 >
-                  by {f.ownerDisplayName ?? f.ownerUsername} ·{" "}
-                  {f.createdAt.toLocaleDateString()}
+                  by{" "}
+                  <Link
+                    href={`/u/${f.ownerUsername}`}
+                    className="nr-link"
+                    style={{ fontSize: "0.85rem" }}
+                  >
+                    {f.ownerDisplayName ?? f.ownerUsername}
+                  </Link>{" "}
+                  · {f.createdAt.toLocaleDateString()}
                 </div>
               </li>
             ))}

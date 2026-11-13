@@ -302,6 +302,21 @@ export function Rail({
                 {email}
               </div>
               <Link
+                href={`/u/${username}`}
+                className="nr-button"
+                style={{
+                  width: "100%",
+                  textDecoration: "none",
+                  padding: "0.5rem",
+                  marginBottom: "0.5rem",
+                  display: "block",
+                  textAlign: "center",
+                }}
+                onClick={() => setMenuOpen(false)}
+              >
+                View my profile
+              </Link>
+              <Link
                 href="/settings"
                 className="nr-button"
                 style={{
@@ -585,6 +600,21 @@ export function Rail({
             >
               {email}
             </div>
+            <Link
+              href={`/u/${username}`}
+              className="nr-button"
+              style={{
+                width: "100%",
+                textDecoration: "none",
+                padding: "0.5rem",
+                marginBottom: "0.5rem",
+                display: "block",
+                textAlign: "center",
+              }}
+              onClick={() => setMenuOpen(false)}
+            >
+              View my profile
+            </Link>
             <button
               onClick={handleLogout}
               className="nr-button"
