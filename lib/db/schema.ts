@@ -42,6 +42,7 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   "suggestion_accepted",
   "suggestion_declined",
   "project_forked",
+  "comment_received",
 ]);
 
 export const pendingActionEnum = pgEnum("pending_action", [
@@ -350,13 +351,13 @@ export const suggestions = pgTable(
   })
 );
 
-export const suggestionComments = pgTable(
-  "suggestion_comments",
+export const annotationComments = pgTable(
+  "annotation_comments",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    suggestionId: uuid("suggestion_id")
+    annotationId: uuid("annotation_id")
       .notNull()
-      .references(() => suggestions.id, { onDelete: "cascade" }),
+      .references(() => annotations.id, { onDelete: "cascade" }),
     authorId: uuid("author_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -366,8 +367,8 @@ export const suggestionComments = pgTable(
       .defaultNow(),
   },
   (table) => ({
-    suggestionIdx: index("suggestion_comments_suggestion_idx").on(
-      table.suggestionId
+    annotationIdx: index("annotation_comments_annotation_idx").on(
+      table.annotationId
     ),
   })
 );
@@ -387,6 +388,9 @@ export const notifications = pgTable(
       onDelete: "cascade",
     }),
     suggestionId: uuid("suggestion_id").references(() => suggestions.id, {
+      onDelete: "cascade",
+    }),
+    annotationId: uuid("annotation_id").references(() => annotations.id, {
       onDelete: "cascade",
     }),
     isRead: boolean("is_read").notNull().default(false),
@@ -413,7 +417,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   sessions: many(sessions),
   readingProgress: many(readingProgress),
   suggestionsAuthored: many(suggestions),
-  suggestionComments: many(suggestionComments),
+  annotationComments: many(annotationComments),
   notifications: many(notifications, { relationName: "notificationUser" }),
   notificationsCaused: many(notifications, {
     relationName: "notificationActor",
@@ -489,6 +493,7 @@ export const annotationsRelations = relations(annotations, ({ one, many }) => ({
   forks: many(annotations, { relationName: "annotationFork" }),
   edits: many(versionEdits),
   suggestions: many(suggestions),
+  comments: many(annotationComments),
 }));
 
 export const readingProgressRelations = relations(
@@ -528,7 +533,7 @@ export const versionEditsRelations = relations(versionEdits, ({ one }) => ({
   }),
 }));
 
-export const suggestionsRelations = relations(suggestions, ({ one, many }) => ({
+export const suggestionsRelations = relations(suggestions, ({ one }) => ({
   sourceProject: one(projects, {
     fields: [suggestions.sourceProjectId],
     references: [projects.id],
@@ -547,18 +552,17 @@ export const suggestionsRelations = relations(suggestions, ({ one, many }) => ({
     fields: [suggestions.authorId],
     references: [users.id],
   }),
-  comments: many(suggestionComments),
 }));
 
-export const suggestionCommentsRelations = relations(
-  suggestionComments,
+export const annotationCommentsRelations = relations(
+  annotationComments,
   ({ one }) => ({
-    suggestion: one(suggestions, {
-      fields: [suggestionComments.suggestionId],
-      references: [suggestions.id],
+    annotation: one(annotations, {
+      fields: [annotationComments.annotationId],
+      references: [annotations.id],
     }),
     author: one(users, {
-      fields: [suggestionComments.authorId],
+      fields: [annotationComments.authorId],
       references: [users.id],
     }),
   })
@@ -582,6 +586,10 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
   suggestion: one(suggestions, {
     fields: [notifications.suggestionId],
     references: [suggestions.id],
+  }),
+  annotation: one(annotations, {
+    fields: [notifications.annotationId],
+    references: [annotations.id],
   }),
 }));
 
@@ -618,8 +626,8 @@ export type NewVersionEdit = typeof versionEdits.$inferInsert;
 export type Suggestion = typeof suggestions.$inferSelect;
 export type NewSuggestion = typeof suggestions.$inferInsert;
 
-export type SuggestionComment = typeof suggestionComments.$inferSelect;
-export type NewSuggestionComment = typeof suggestionComments.$inferInsert;
+export type AnnotationComment = typeof annotationComments.$inferSelect;
+export type NewAnnotationComment = typeof annotationComments.$inferInsert;
 
 export type Notification = typeof notifications.$inferSelect;
 export type NewNotification = typeof notifications.$inferInsert;

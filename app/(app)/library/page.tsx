@@ -74,10 +74,7 @@ export default async function LibraryPage() {
     .from(suggestions)
     .innerJoin(projects, eq(suggestions.targetProjectId, projects.id))
     .where(
-      and(
-        eq(projects.ownerId, user.id),
-        eq(suggestions.status, "open")
-      )
+      and(eq(projects.ownerId, user.id), eq(suggestions.status, "open"))
     );
   const openSuggestionCount = suggestionsCountResult[0]?.value ?? 0;
 
@@ -87,6 +84,7 @@ export default async function LibraryPage() {
       projectName: projects.name,
       bookTitle: books.title,
       bookAuthor: books.author,
+      bookCover: books.coverUrl,
       currentLocation: readingProgress.currentLocation,
       progressPercentage: readingProgress.progressPercentage,
       lastReadAt: readingProgress.lastReadAt,
@@ -119,6 +117,7 @@ export default async function LibraryPage() {
               projectId: current.projectId,
               bookTitle: current.bookTitle,
               bookAuthor: current.bookAuthor,
+              bookCover: current.bookCover,
               currentLocation: current.currentLocation,
               progressPercentage: current.progressPercentage,
               lastReadAt: current.lastReadAt.toISOString(),

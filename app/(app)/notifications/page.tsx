@@ -1,11 +1,7 @@
 import Link from "next/link";
 import { eq, desc, and } from "drizzle-orm";
 import { db } from "@/lib/db";
-import {
-  notifications,
-  users,
-  projects,
-} from "@/lib/db/schema";
+import { notifications, users, projects } from "@/lib/db/schema";
 import { requireUser } from "@/lib/auth/require-user";
 
 function relativeTime(date: Date): string {
@@ -34,6 +30,8 @@ function messageFor(
       return `${actor} declined your suggestion on ${project}`;
     case "project_forked":
       return `${actor} started their own version of ${project}`;
+    case "comment_received":
+      return `${actor} replied to one of your notes in ${project}`;
     default:
       return `New activity on ${project}`;
   }
@@ -95,13 +93,8 @@ export default async function NotificationsPage() {
         >
           Notifications
         </h1>
-        <p
-          style={{
-            fontSize: "0.9rem",
-            color: "var(--nr-text-soft)",
-          }}
-        >
-          Activity on your projects and your suggestions.
+        <p style={{ fontSize: "0.9rem", color: "var(--nr-text-soft)" }}>
+          Activity on your projects and your notes.
         </p>
       </div>
 
@@ -115,7 +108,7 @@ export default async function NotificationsPage() {
             }}
           >
             No notifications yet. When another reader forks your project, or
-            responds to your suggestion, it will appear here.
+            responds to your note, it will appear here.
           </p>
         </div>
       ) : (

@@ -44,6 +44,15 @@ type HistoryEntry = {
   authorDisplayName: string | null;
 };
 
+type CommentEntry = {
+  id: string;
+  content: string;
+  createdAt: string;
+  authorId: string;
+  authorUsername: string;
+  authorDisplayName: string | null;
+};
+
 type ReaderProps = {
   projectId: string;
   forkedFromId: string | null;
@@ -154,7 +163,12 @@ export default function Reader({
   const [suggestSuccess, setSuggestSuccess] = useState<string | null>(null);
   const [historyOpenId, setHistoryOpenId] = useState<string | null>(null);
   const [historyCache, setHistoryCache] = useState<Record<string, HistoryEntry[]>>({});
-  const [historyLoading, setHistoryLoading] = useState(false);
+  const [commentsOpenId, setCommentsOpenId] = useState<string | null>(null);
+  const [commentsCache, setCommentsCache] = useState<Record<string, CommentEntry[]>>({});
+  const [commentDraft, setCommentDraft] = useState("");
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentSaving, setCommentSaving] = useState(false);
+  const [commentError, setCommentError] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [settings, setSettings] = useState<ReaderSettings>(DEFAULT_SETTINGS);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -168,11 +182,15 @@ export default function Reader({
         const parsed = JSON.parse(raw) as Partial<ReaderSettings>;
         setSettings({
           fontSize:
-            typeof parsed.fontSize === "number" && parsed.fontSize >= 14 && parsed.fontSize <= 28
+            typeof parsed.fontSize === "number" &&
+            parsed.fontSize >= 14 &&
+            parsed.fontSize <= 28
               ? parsed.fontSize
               : DEFAULT_SETTINGS.fontSize,
           lineHeight:
-            typeof parsed.lineHeight === "number" && parsed.lineHeight >= 1.2 && parsed.lineHeight <= 2.4
+            typeof parsed.lineHeight === "number" &&
+            parsed.lineHeight >= 1.2 &&
+            parsed.lineHeight <= 2.4
               ? parsed.lineHeight
               : DEFAULT_SETTINGS.lineHeight,
           width:
@@ -188,7 +206,10 @@ export default function Reader({
 
   function updateSettings(next: ReaderSettings) {
     setSettings(next);
-    window.localStorage.setItem("crossread_reader_settings", JSON.stringify(next));
+    window.localStorage.setItem(
+      "crossread_reader_settings",
+      JSON.stringify(next)
+    );
   }
 
   useEffect(() => {
@@ -436,28 +457,87 @@ export default function Reader({
       return;
     }
     setHistoryOpenId(annotationId);
+    setCommentsOpenId(null);
 
     if (historyCache[annotationId]) return;
 
-    setHistoryLoading(true);
     try {
       const res = await fetch(`/api/annotations/${annotationId}/history`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setHistoryCache((prev) => ({ ...prev, [annotationId]: data.history }));
+    } catch {}
+  }
+
+  async function toggleComments(annotationId: string) {
+    if (commentsOpenId === annotationId) {
+      setCommentsOpenId(null);
+      setCommentDraft("");
+      setCommentError(null);
+      return;
+    }
+    setCommentsOpenId(annotationId);
+    setHistoryOpenId(null);
+    setCommentDraft("");
+    setCommentError(null);
+
+    if (commentsCache[annotationId]) return;
+
+    setCommentsLoading(true);
+    try {
+      const res = await fetch(`/api/annotations/${annotationId}/comments`);
       if (!res.ok) {
-        setHistoryLoading(false);
+        setCommentsLoading(false);
         return;
       }
       const data = await res.json();
-      setHistoryCache((prev) => ({ ...prev, [annotationId]: data.history }));
-      setHistoryLoading(false);
+      setCommentsCache((prev) => ({
+        ...prev,
+        [annotationId]: data.comments,
+      }));
+      setCommentsLoading(false);
     } catch {
-      setHistoryLoading(false);
+      setCommentsLoading(false);
+    }
+  }
+
+  async function submitComment(annotationId: string) {
+    if (commentDraft.trim().length === 0) return;
+    setCommentSaving(true);
+    setCommentError(null);
+
+    try {
+      const res = await fetch(`/api/annotations/${annotationId}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: commentDraft.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setCommentError(data.error || "Could not post comment");
+        setCommentSaving(false);
+        return;
+      }
+      setCommentsCache((prev) => ({
+        ...prev,
+        [annotationId]: [...(prev[annotationId] ?? []), data.comment],
+      }));
+      setCommentDraft("");
+      setCommentSaving(false);
+    } catch {
+      setCommentError("Could not post comment");
+      setCommentSaving(false);
     }
   }
 
   const canSuggest = forkedFromId !== null;
   const bottomOffset = isMobile ? "5rem" : "6rem";
   const readingWidth =
-    settings.width === "narrow" ? "32rem" : settings.width === "wide" ? "56rem" : "44rem";
+    settings.width === "narrow"
+      ? "32rem"
+      : settings.width === "wide"
+      ? "56rem"
+      : "44rem";
 
   return (
     <div
@@ -596,7 +676,9 @@ export default function Reader({
                           {list.map((a) => {
                             const isOwn = a.authorId === currentUserId;
                             const isHistoryOpen = historyOpenId === a.id;
-                            const entries = historyCache[a.id] ?? [];
+                            const isCommentsOpen = commentsOpenId === a.id;
+                            const history = historyCache[a.id] ?? [];
+                            const comments = commentsCache[a.id] ?? [];
                             return (
                               <div
                                 key={a.id}
@@ -617,26 +699,56 @@ export default function Reader({
                                     display: "flex",
                                     justifyContent: "space-between",
                                     alignItems: "center",
-                                    gap: "0.5rem",
+                                    gap: "0.75rem",
+                                    flexWrap: "wrap",
                                   }}
                                 >
                                   <span>{a.type}</span>
-                                  <button
-                                    onClick={() => toggleHistory(a.id)}
+                                  <span
                                     style={{
-                                      background: "transparent",
-                                      border: "none",
-                                      padding: 0,
-                                      fontSize: "0.7rem",
-                                      fontWeight: 600,
-                                      color: "var(--nr-text-soft)",
-                                      cursor: "pointer",
-                                      textTransform: "uppercase",
-                                      letterSpacing: "0.08em",
+                                      display: "flex",
+                                      gap: "0.75rem",
                                     }}
                                   >
-                                    {isHistoryOpen ? "Hide history" : "History"}
-                                  </button>
+                                    <button
+                                      onClick={() => toggleHistory(a.id)}
+                                      style={{
+                                        background: "transparent",
+                                        border: "none",
+                                        padding: 0,
+                                        fontSize: "0.7rem",
+                                        fontWeight: 600,
+                                        color: "var(--nr-text-soft)",
+                                        cursor: "pointer",
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.08em",
+                                      }}
+                                    >
+                                      {isHistoryOpen ? "Hide history" : "History"}
+                                    </button>
+                                    <button
+                                      onClick={() => toggleComments(a.id)}
+                                      style={{
+                                        background: "transparent",
+                                        border: "none",
+                                        padding: 0,
+                                        fontSize: "0.7rem",
+                                        fontWeight: 600,
+                                        color: "var(--nr-text-soft)",
+                                        cursor: "pointer",
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.08em",
+                                      }}
+                                    >
+                                      {isCommentsOpen
+                                        ? "Hide comments"
+                                        : `Comments${
+                                            comments.length > 0
+                                              ? ` (${comments.length})`
+                                              : ""
+                                          }`}
+                                    </button>
+                                  </span>
                                 </div>
                                 {a.selectedText && (
                                   <div
@@ -670,20 +782,12 @@ export default function Reader({
                                   <div
                                     style={{
                                       marginTop: "0.75rem",
-                                      borderTop: "1px solid var(--nr-shadow-dark)",
+                                      borderTop:
+                                        "1px solid var(--nr-shadow-dark)",
                                       paddingTop: "0.75rem",
                                     }}
                                   >
-                                    {historyLoading && entries.length === 0 ? (
-                                      <div
-                                        style={{
-                                          fontSize: "0.8rem",
-                                          color: "var(--nr-text-soft)",
-                                        }}
-                                      >
-                                        Loading history
-                                      </div>
-                                    ) : entries.length === 0 ? (
+                                    {history.length === 0 ? (
                                       <div
                                         style={{
                                           fontSize: "0.8rem",
@@ -704,7 +808,7 @@ export default function Reader({
                                           gap: "0.5rem",
                                         }}
                                       >
-                                        {entries.map((e) => {
+                                        {history.map((e) => {
                                           const author =
                                             e.authorDisplayName ??
                                             e.authorUsername;
@@ -735,7 +839,8 @@ export default function Reader({
                                                 <div
                                                   style={{
                                                     fontSize: "0.8rem",
-                                                    color: "var(--nr-text-soft)",
+                                                    color:
+                                                      "var(--nr-text-soft)",
                                                     textDecoration:
                                                       "line-through",
                                                     marginTop: "0.35rem",
@@ -760,6 +865,121 @@ export default function Reader({
                                         })}
                                       </ul>
                                     )}
+                                  </div>
+                                )}
+
+                                {isCommentsOpen && (
+                                  <div
+                                    style={{
+                                      marginTop: "0.75rem",
+                                      borderTop:
+                                        "1px solid var(--nr-shadow-dark)",
+                                      paddingTop: "0.75rem",
+                                    }}
+                                  >
+                                    {commentsLoading && comments.length === 0 ? (
+                                      <div
+                                        style={{
+                                          fontSize: "0.8rem",
+                                          color: "var(--nr-text-soft)",
+                                        }}
+                                      >
+                                        Loading comments
+                                      </div>
+                                    ) : comments.length === 0 ? (
+                                      <div
+                                        style={{
+                                          fontSize: "0.8rem",
+                                          color: "var(--nr-text-soft)",
+                                          fontStyle: "italic",
+                                          marginBottom: "0.5rem",
+                                        }}
+                                      >
+                                        No comments yet. Be the first to reply.
+                                      </div>
+                                    ) : (
+                                      <ul
+                                        style={{
+                                          listStyle: "none",
+                                          padding: 0,
+                                          margin: 0,
+                                          display: "flex",
+                                          flexDirection: "column",
+                                          gap: "0.5rem",
+                                          marginBottom: "0.75rem",
+                                        }}
+                                      >
+                                        {comments.map((c) => (
+                                          <li
+                                            key={c.id}
+                                            style={{
+                                              fontSize: "0.85rem",
+                                              color: "var(--nr-text)",
+                                              background: "var(--nr-bg)",
+                                              padding: "0.5rem 0.75rem",
+                                              borderRadius: "0.5rem",
+                                            }}
+                                          >
+                                            <div
+                                              style={{
+                                                fontSize: "0.7rem",
+                                                color:
+                                                  "var(--nr-text-soft)",
+                                                marginBottom: "0.15rem",
+                                              }}
+                                            >
+                                              {c.authorDisplayName ??
+                                                c.authorUsername}{" "}
+                                              ·{" "}
+                                              {new Date(
+                                                c.createdAt
+                                              ).toLocaleString()}
+                                            </div>
+                                            {c.content}
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    )}
+
+                                    {commentError && (
+                                      <div
+                                        className="nr-error"
+                                        style={{ marginBottom: "0.5rem" }}
+                                      >
+                                        {commentError}
+                                      </div>
+                                    )}
+
+                                    <textarea
+                                      className="nr-input"
+                                      rows={2}
+                                      placeholder="Write a reply"
+                                      value={commentDraft}
+                                      onChange={(e) =>
+                                        setCommentDraft(e.target.value)
+                                      }
+                                    />
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        justifyContent: "flex-end",
+                                        marginTop: "0.5rem",
+                                      }}
+                                    >
+                                      <button
+                                        onClick={() => submitComment(a.id)}
+                                        className="nr-button"
+                                        style={{ width: "auto" }}
+                                        disabled={
+                                          commentSaving ||
+                                          commentDraft.trim().length === 0
+                                        }
+                                      >
+                                        {commentSaving
+                                          ? "Sending"
+                                          : "Post reply"}
+                                      </button>
+                                    </div>
                                   </div>
                                 )}
 
@@ -951,7 +1171,9 @@ export default function Reader({
               {[16, 18, 20, 22, 24].map((size) => (
                 <button
                   key={size}
-                  onClick={() => updateSettings({ ...settings, fontSize: size })}
+                  onClick={() =>
+                    updateSettings({ ...settings, fontSize: size })
+                  }
                   className="nr-button"
                   style={{
                     width: "auto",
@@ -982,7 +1204,9 @@ export default function Reader({
               {[1.5, 1.75, 2, 2.25].map((h) => (
                 <button
                   key={h}
-                  onClick={() => updateSettings({ ...settings, lineHeight: h })}
+                  onClick={() =>
+                    updateSettings({ ...settings, lineHeight: h })
+                  }
                   className="nr-button"
                   style={{
                     width: "auto",
