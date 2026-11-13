@@ -176,6 +176,7 @@ export default function Reader({
     initialLocation
   );
   const containerRef = useRef<HTMLDivElement>(null);
+  const settingsRef = useRef<HTMLDivElement>(null);
   const lastReportedChapterRef = useRef<string | null>(initialLocation);
 
   useEffect(() => {
@@ -206,6 +207,20 @@ export default function Reader({
       } catch {}
     }
   }, []);
+
+  useEffect(() => {
+    if (!settingsOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        settingsRef.current &&
+        !settingsRef.current.contains(e.target as Node)
+      ) {
+        setSettingsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [settingsOpen]);
 
   function updateSettings(next: ReaderSettings) {
     setSettings(next);
@@ -1170,6 +1185,7 @@ export default function Reader({
 
       {settingsOpen && (
         <div
+          ref={settingsRef}
           className="nr-surface"
           style={{
             position: "fixed",
@@ -1183,13 +1199,38 @@ export default function Reader({
         >
           <div
             style={{
-              fontSize: "0.85rem",
-              fontWeight: 700,
-              color: "var(--nr-text)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
               marginBottom: "0.9rem",
             }}
           >
-            Reading settings
+            <div
+              style={{
+                fontSize: "0.85rem",
+                fontWeight: 700,
+                color: "var(--nr-text)",
+              }}
+            >
+              Reading settings
+            </div>
+            <button
+              onClick={() => setSettingsOpen(false)}
+              aria-label="Close reading settings"
+              className="nr-surface-sm"
+              style={{
+                width: "1.75rem",
+                height: "1.75rem",
+                borderRadius: "0.5rem",
+                border: "none",
+                cursor: "pointer",
+                color: "var(--nr-text)",
+                fontWeight: 700,
+                fontSize: "0.8rem",
+              }}
+            >
+              ×
+            </button>
           </div>
 
           <div style={{ marginBottom: "0.9rem" }}>
@@ -1309,13 +1350,41 @@ export default function Reader({
         >
           <div
             style={{
-              fontSize: "0.85rem",
-              fontWeight: 700,
-              color: "var(--nr-text)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
               marginBottom: "0.75rem",
             }}
           >
-            Suggest an edit
+            <div
+              style={{
+                fontSize: "0.85rem",
+                fontWeight: 700,
+                color: "var(--nr-text)",
+              }}
+            >
+              Suggest an edit
+            </div>
+            <button
+              onClick={() => {
+                setSuggest(null);
+                setSuggestError(null);
+              }}
+              aria-label="Close suggestion"
+              className="nr-surface-sm"
+              style={{
+                width: "1.75rem",
+                height: "1.75rem",
+                borderRadius: "0.5rem",
+                border: "none",
+                cursor: "pointer",
+                color: "var(--nr-text)",
+                fontWeight: 700,
+                fontSize: "0.8rem",
+              }}
+            >
+              ×
+            </button>
           </div>
           <div
             style={{
@@ -1428,13 +1497,38 @@ export default function Reader({
         >
           <div
             style={{
-              fontSize: "0.85rem",
-              fontWeight: 700,
-              color: "var(--nr-text)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
               marginBottom: "0.75rem",
             }}
           >
-            Save {draftCount} change{draftCount === 1 ? "" : "s"} as a version
+            <div
+              style={{
+                fontSize: "0.85rem",
+                fontWeight: 700,
+                color: "var(--nr-text)",
+              }}
+            >
+              Save {draftCount} change{draftCount === 1 ? "" : "s"} as a version
+            </div>
+            <button
+              onClick={() => setSaveBarOpen(false)}
+              aria-label="Close save panel"
+              className="nr-surface-sm"
+              style={{
+                width: "1.75rem",
+                height: "1.75rem",
+                borderRadius: "0.5rem",
+                border: "none",
+                cursor: "pointer",
+                color: "var(--nr-text)",
+                fontWeight: 700,
+                fontSize: "0.8rem",
+              }}
+            >
+              ×
+            </button>
           </div>
           <input
             type="text"
