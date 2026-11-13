@@ -192,8 +192,7 @@ export default async function ProjectOverviewPage({
     }));
   }
 
-  const canCompare =
-    project.visibility === "public" && otherPublicCount > 0;
+  const canCompare = project.visibility === "public" && otherPublicCount > 0;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
@@ -348,6 +347,30 @@ export default async function ProjectOverviewPage({
               >
                 About the book
               </Link>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                gap: "0.75rem",
+                marginTop: "0.9rem",
+                flexWrap: "wrap",
+              }}
+            >
+              <a
+                href={`/api/projects/${project.id}/export/markdown`}
+                className="nr-link"
+                style={{ fontSize: "0.85rem" }}
+              >
+                Download as Markdown
+              </a>
+              <a
+                href={`/api/projects/${project.id}/export/json`}
+                className="nr-link"
+                style={{ fontSize: "0.85rem" }}
+              >
+                Download as JSON
+              </a>
             </div>
           </div>
         </div>
