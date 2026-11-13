@@ -172,6 +172,9 @@ export default function Reader({
   const [isMobile, setIsMobile] = useState(false);
   const [settings, setSettings] = useState<ReaderSettings>(DEFAULT_SETTINGS);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [activeChapterTitle, setActiveChapterTitle] = useState<string | null>(
+    initialLocation
+  );
   const containerRef = useRef<HTMLDivElement>(null);
   const lastReportedChapterRef = useRef<string | null>(initialLocation);
 
@@ -281,6 +284,7 @@ export default function Reader({
               ? Math.round(((idx + 1) / chapters.length) * 100)
               : 0;
           lastReportedChapterRef.current = title;
+          setActiveChapterTitle(title);
 
           fetch(`/api/projects/${projectId}/progress`, {
             method: "PATCH",
@@ -530,6 +534,15 @@ export default function Reader({
     }
   }
 
+  function jumpToChapter(title: string) {
+    const el = document.querySelector(
+      `[data-chapter-title="${CSS.escape(title)}"]`
+    );
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+
   const canSuggest = forkedFromId !== null;
   const bottomOffset = isMobile ? "5rem" : "6rem";
   const readingWidth =
@@ -564,13 +577,37 @@ export default function Reader({
       )}
 
       <div
+        className="nr-surface"
         style={{
+          padding: "1rem 1.25rem",
           display: "flex",
-          justifyContent: "flex-end",
+          justifyContent: "space-between",
           alignItems: "center",
-          gap: "0.5rem",
+          gap: "0.75rem",
+          flexWrap: "wrap",
         }}
       >
+        <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
+          {chapters.map((c) => {
+            const active = activeChapterTitle === c.title;
+            return (
+              <button
+                key={c.id}
+                onClick={() => jumpToChapter(c.title)}
+                className="nr-button"
+                style={{
+                  width: "auto",
+                  padding: "0.4rem 0.75rem",
+                  fontSize: "0.8rem",
+                  opacity: active ? 1 : 0.6,
+                  fontWeight: active ? 700 : 500,
+                }}
+              >
+                {c.title}
+              </button>
+            );
+          })}
+        </div>
         <button
           onClick={() => setSettingsOpen((v) => !v)}
           className="nr-surface-sm"
@@ -602,7 +639,7 @@ export default function Reader({
               key={chapter.id}
               data-chapter-title={chapter.title}
               data-chapter-position={chapter.position}
-              style={{ marginBottom: "2rem", scrollMarginTop: "2rem" }}
+              style={{ marginBottom: "2rem", scrollMarginTop: "4rem" }}
             >
               <h2
                 style={{
