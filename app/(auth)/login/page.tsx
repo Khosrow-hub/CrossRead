@@ -93,7 +93,11 @@ export default function LoginPage() {
           </span>
         </div>
 
-        <button type="submit" className="nr-button" disabled={loading}>
+        <button
+          type="submit"
+          className="nr-button nr-auth-button"
+          disabled={loading}
+        >
           {loading ? "Logging in" : "Log in"}
         </button>
       </form>

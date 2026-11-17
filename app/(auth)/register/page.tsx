@@ -90,7 +90,11 @@ export default function RegisterPage() {
           />
         </div>
 
-        <button type="submit" className="nr-button" disabled={loading}>
+        <button
+          type="submit"
+          className="nr-button nr-auth-button"
+          disabled={loading}
+        >
           {loading ? "Creating account" : "Create account"}
         </button>
       </form>
