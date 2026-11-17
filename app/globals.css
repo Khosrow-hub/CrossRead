@@ -189,3 +189,20 @@ body {
     padding-bottom: 5rem;
   }
 }
+  .nr-auth-title {
+    font-size: 1.6rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--nr-text);
+    margin-bottom: 1.5rem;
+  }
+
+  .nr-auth-label {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--nr-text-soft);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }

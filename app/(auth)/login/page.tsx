@@ -22,15 +22,12 @@ export default function LoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ identifier, password }),
       });
-
       const data = await res.json();
-
       if (!res.ok) {
         setError(data.error || "Something went wrong");
         setLoading(false);
         return;
       }
-
       router.push("/library");
       router.refresh();
     } catch {
@@ -41,22 +38,13 @@ export default function LoginPage() {
 
   return (
     <div>
-      <h1
-        style={{
-          fontSize: "1.6rem",
-          fontWeight: 700,
-          marginBottom: "1.75rem",
-          color: "var(--nr-text)",
-        }}
-      >
-        Welcome back
-      </h1>
+      <h1 className="nr-auth-title">Log in</h1>
 
       <form onSubmit={handleSubmit}>
         {error && <div className="nr-error">{error}</div>}
 
-        <div style={{ marginBottom: "1.1rem" }}>
-          <label htmlFor="identifier" className="nr-label">
+        <div style={{ marginBottom: "1rem" }}>
+          <label className="nr-auth-label" htmlFor="identifier">
             Username or email
           </label>
           <input
@@ -70,8 +58,8 @@ export default function LoginPage() {
           />
         </div>
 
-        <div style={{ marginBottom: "1.75rem" }}>
-          <label htmlFor="password" className="nr-label">
+        <div style={{ marginBottom: "0.5rem" }}>
+          <label className="nr-auth-label" htmlFor="password">
             Password
           </label>
           <input
@@ -85,6 +73,26 @@ export default function LoginPage() {
           />
         </div>
 
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            marginBottom: "1.25rem",
+          }}
+        >
+          <span
+            style={{
+              fontSize: "0.75rem",
+              color: "var(--nr-text-soft)",
+              opacity: 0.6,
+              cursor: "not-allowed",
+            }}
+            title="Password reset is not built yet"
+          >
+            Forgot password?
+          </span>
+        </div>
+
         <button type="submit" className="nr-button" disabled={loading}>
           {loading ? "Logging in" : "Log in"}
         </button>
@@ -92,8 +100,8 @@ export default function LoginPage() {
 
       <p
         style={{
-          marginTop: "1.75rem",
-          fontSize: "0.9rem",
+          marginTop: "1.5rem",
+          fontSize: "0.85rem",
           color: "var(--nr-text-soft)",
           textAlign: "center",
         }}
@@ -102,6 +110,18 @@ export default function LoginPage() {
         <Link href="/register" className="nr-link">
           Create an account
         </Link>
+      </p>
+
+      <p
+        style={{
+          marginTop: "1.75rem",
+          fontSize: "0.7rem",
+          color: "var(--nr-text-soft)",
+          opacity: 0.6,
+          textAlign: "center",
+        }}
+      >
+        Terms and privacy are not published yet.
       </p>
     </div>
   );

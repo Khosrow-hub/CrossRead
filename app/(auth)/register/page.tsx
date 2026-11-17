@@ -23,15 +23,12 @@ export default function RegisterPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, email, password }),
       });
-
       const data = await res.json();
-
       if (!res.ok) {
         setError(data.error || "Something went wrong");
         setLoading(false);
         return;
       }
-
       router.push("/library");
       router.refresh();
     } catch {
@@ -42,22 +39,13 @@ export default function RegisterPage() {
 
   return (
     <div>
-      <h1
-        style={{
-          fontSize: "1.6rem",
-          fontWeight: 700,
-          marginBottom: "1.75rem",
-          color: "var(--nr-text)",
-        }}
-      >
-        Create your account
-      </h1>
+      <h1 className="nr-auth-title">Create your account</h1>
 
       <form onSubmit={handleSubmit}>
         {error && <div className="nr-error">{error}</div>}
 
-        <div style={{ marginBottom: "1.1rem" }}>
-          <label htmlFor="username" className="nr-label">
+        <div style={{ marginBottom: "1rem" }}>
+          <label className="nr-auth-label" htmlFor="username">
             Username
           </label>
           <input
@@ -71,8 +59,8 @@ export default function RegisterPage() {
           />
         </div>
 
-        <div style={{ marginBottom: "1.1rem" }}>
-          <label htmlFor="email" className="nr-label">
+        <div style={{ marginBottom: "1rem" }}>
+          <label className="nr-auth-label" htmlFor="email">
             Email
           </label>
           <input
@@ -86,8 +74,8 @@ export default function RegisterPage() {
           />
         </div>
 
-        <div style={{ marginBottom: "1.75rem" }}>
-          <label htmlFor="password" className="nr-label">
+        <div style={{ marginBottom: "1.25rem" }}>
+          <label className="nr-auth-label" htmlFor="password">
             Password
           </label>
           <input
@@ -109,8 +97,8 @@ export default function RegisterPage() {
 
       <p
         style={{
-          marginTop: "1.75rem",
-          fontSize: "0.9rem",
+          marginTop: "1.5rem",
+          fontSize: "0.85rem",
           color: "var(--nr-text-soft)",
           textAlign: "center",
         }}
@@ -119,6 +107,18 @@ export default function RegisterPage() {
         <Link href="/login" className="nr-link">
           Log in
         </Link>
+      </p>
+
+      <p
+        style={{
+          marginTop: "1.75rem",
+          fontSize: "0.7rem",
+          color: "var(--nr-text-soft)",
+          opacity: 0.6,
+          textAlign: "center",
+        }}
+      >
+        Terms and privacy are not published yet.
       </p>
     </div>
   );
