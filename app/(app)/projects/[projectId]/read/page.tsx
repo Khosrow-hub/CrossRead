@@ -32,6 +32,7 @@ export default async function ReadPage({
       forkedFromId: projects.forkedFromId,
       bookTitle: books.title,
       bookAuthor: books.author,
+      bookCover: books.coverUrl,
     })
     .from(projects)
     .innerJoin(books, eq(projects.bookId, books.id))
@@ -104,29 +105,69 @@ export default async function ReadPage({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-      <div className="nr-surface" style={{ padding: "1.25rem 1.5rem" }}>
+      <div
+        className="nr-surface"
+        style={{
+          padding: "1.25rem 1.5rem",
+          display: "flex",
+          gap: "1.25rem",
+          alignItems: "center",
+        }}
+      >
         <div
+          className="nr-inset"
           style={{
-            fontSize: "0.75rem",
-            color: "var(--nr-text-soft)",
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
-            marginBottom: "0.25rem",
-          }}
-        >
-          {project.name}
-        </div>
-        <div
-          style={{
-            fontSize: "1.25rem",
+            width: "4rem",
+            height: "5.5rem",
+            borderRadius: "0.6rem",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            overflow: "hidden",
+            flexShrink: 0,
             fontWeight: 700,
-            color: "var(--nr-text)",
+            fontSize: "1.5rem",
+            color: "var(--nr-text-soft)",
           }}
         >
-          {project.bookTitle}
+          {project.bookCover ? (
+            <img
+              src={project.bookCover}
+              alt=""
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+              }}
+            />
+          ) : (
+            project.bookTitle.charAt(0)
+          )}
         </div>
-        <div style={{ fontSize: "0.9rem", color: "var(--nr-text-soft)" }}>
-          {project.bookAuthor}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              fontSize: "0.7rem",
+              color: "var(--nr-text-soft)",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              marginBottom: "0.2rem",
+            }}
+          >
+            {project.name}
+          </div>
+          <div
+            style={{
+              fontSize: "1.15rem",
+              fontWeight: 700,
+              color: "var(--nr-text)",
+            }}
+          >
+            {project.bookTitle}
+          </div>
+          <div style={{ fontSize: "0.85rem", color: "var(--nr-text-soft)" }}>
+            {project.bookAuthor}
+          </div>
         </div>
       </div>
 

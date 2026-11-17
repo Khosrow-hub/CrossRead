@@ -98,6 +98,13 @@ const DEFAULT_SETTINGS: ReaderSettings = {
   width: "medium",
 };
 
+const TYPE_COLORS: Record<AnnotationType, string> = {
+  highlight: "#c9a227",
+  note: "#4a6fd4",
+  question: "#8b5cf6",
+  interpretation: "#2f8a5f",
+};
+
 function buildHighlightSegments(
   text: string,
   annotations: Annotation[]
@@ -232,7 +239,7 @@ export default function Reader({
 
   useEffect(() => {
     function update() {
-      setIsMobile(window.innerWidth < 900);
+      setIsMobile(window.innerWidth < 1100);
     }
     update();
     window.addEventListener("resize", update);
@@ -562,7 +569,7 @@ export default function Reader({
   const bottomOffset = isMobile ? "5rem" : "6rem";
   const readingWidth =
     settings.width === "narrow"
-      ? "32rem"
+      ? "34rem"
       : settings.width === "wide"
       ? "56rem"
       : "44rem";
@@ -594,12 +601,15 @@ export default function Reader({
       <div
         className="nr-surface"
         style={{
-          padding: "1rem 1.25rem",
+          padding: "0.75rem 1rem",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
           gap: "0.75rem",
           flexWrap: "wrap",
+          position: "sticky",
+          top: "0.5rem",
+          zIndex: 20,
         }}
       >
         <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
@@ -641,511 +651,326 @@ export default function Reader({
         </button>
       </div>
 
-      <div
-        className="nr-surface"
-        style={{ padding: isMobile ? "1.25rem" : "2rem" }}
-      >
-        {chapters.map((chapter) => {
-          const chapterPassages = passages.filter(
-            (p) => p.chapterId === chapter.id
-          );
-          return (
-            <section
-              key={chapter.id}
-              data-chapter-title={chapter.title}
-              data-chapter-position={chapter.position}
-              style={{ marginBottom: "2rem", scrollMarginTop: "4rem" }}
+      {chapters.map((chapter) => {
+        const chapterPassages = passages.filter(
+          (p) => p.chapterId === chapter.id
+        );
+        return (
+          <section
+            key={chapter.id}
+            data-chapter-title={chapter.title}
+            data-chapter-position={chapter.position}
+            style={{ scrollMarginTop: "6rem" }}
+          >
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 2fr) minmax(0, 1fr)",
+                gap: "1.25rem",
+                alignItems: "start",
+              }}
             >
-              <h2
-                style={{
-                  fontSize: "1.05rem",
-                  fontWeight: 700,
-                  color: "var(--nr-text)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.08em",
-                  marginBottom: "1rem",
-                }}
-              >
-                {chapter.title}
-              </h2>
+              {/* READING COLUMN */}
               <div
                 style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "1.5rem",
+                  background: "var(--nr-surface-raised)",
+                  borderRadius: "1.25rem",
+                  padding: isMobile ? "1.25rem" : "2.5rem",
+                  boxShadow:
+                    "-4px -4px 12px var(--nr-shadow-light), 4px 4px 12px var(--nr-shadow-dark)",
                 }}
               >
-                {chapterPassages.map((p) => {
-                  const list = annotationsByPassage.get(p.id) ?? [];
-                  const segments = buildHighlightSegments(p.text, list);
-                  return (
-                    <div key={p.id} data-passage-id={p.id}>
-                      <p
-                        data-passage-text
-                        style={{
-                          fontSize: `${settings.fontSize}px`,
-                          lineHeight: settings.lineHeight,
-                          color: "var(--nr-text)",
-                          margin: 0,
-                          cursor: "text",
-                          userSelect: "text",
-                          maxWidth: readingWidth,
-                          marginLeft: "auto",
-                          marginRight: "auto",
-                        }}
-                      >
-                        {segments.map((seg, i) =>
-                          seg.highlight ? (
-                            <mark
-                              key={i}
+                <h2
+                  style={{
+                    fontSize: "0.95rem",
+                    fontWeight: 700,
+                    color: "var(--nr-text-soft)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.1em",
+                    marginBottom: "1.5rem",
+                  }}
+                >
+                  {chapter.title}
+                </h2>
+
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "1.5rem",
+                    maxWidth: readingWidth,
+                  }}
+                >
+                  {chapterPassages.map((p) => {
+                    const list = annotationsByPassage.get(p.id) ?? [];
+                    const segments = buildHighlightSegments(p.text, list);
+                    return (
+                      <div key={p.id} data-passage-id={p.id}>
+                        <p
+                          data-passage-text
+                          style={{
+                            fontSize: `${settings.fontSize}px`,
+                            lineHeight: settings.lineHeight,
+                            color: "var(--nr-text)",
+                            margin: 0,
+                            cursor: "text",
+                            userSelect: "text",
+                          }}
+                        >
+                          {segments.map((seg, i) =>
+                            seg.highlight ? (
+                              <mark
+                                key={i}
+                                style={{
+                                  background: "rgba(201, 162, 39, 0.35)",
+                                  borderRadius: "0.2rem",
+                                  padding: "0 0.05rem",
+                                  color: "inherit",
+                                }}
+                              >
+                                {seg.text}
+                              </mark>
+                            ) : (
+                              <span key={i}>{seg.text}</span>
+                            )
+                          )}
+                        </p>
+
+                        {draft && draft.passageId === p.id && (
+                          <div
+                            className="nr-surface"
+                            style={{
+                              padding: "1rem",
+                              marginTop: "0.75rem",
+                            }}
+                          >
+                            <div
                               style={{
-                                background: "rgba(122, 167, 232, 0.35)",
-                                borderRadius: "0.2rem",
-                                padding: "0 0.05rem",
-                                color: "inherit",
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                marginBottom: "0.5rem",
                               }}
                             >
-                              {seg.text}
-                            </mark>
-                          ) : (
-                            <span key={i}>{seg.text}</span>
-                          )
-                        )}
-                      </p>
-
-                      {list.length > 0 && (
-                        <div
-                          style={{
-                            marginTop: "0.75rem",
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: "0.5rem",
-                            maxWidth: readingWidth,
-                            marginLeft: "auto",
-                            marginRight: "auto",
-                          }}
-                        >
-                          {list.map((a) => {
-                            const isOwn = a.authorId === currentUserId;
-                            const isHistoryOpen = historyOpenId === a.id;
-                            const isCommentsOpen = commentsOpenId === a.id;
-                            const history = historyCache[a.id] ?? [];
-                            const comments = commentsCache[a.id] ?? [];
-                            return (
                               <div
-                                key={a.id}
-                                className="nr-inset"
                                 style={{
-                                  padding: "0.75rem 1rem",
-                                  fontSize: "0.9rem",
-                                  color: "var(--nr-text)",
+                                  fontSize: "0.7rem",
+                                  color: "var(--nr-text-soft)",
+                                  textTransform: "uppercase",
+                                  letterSpacing: "0.08em",
                                 }}
                               >
-                                <div
-                                  style={{
-                                    fontSize: "0.7rem",
-                                    color: "var(--nr-text-soft)",
-                                    textTransform: "uppercase",
-                                    letterSpacing: "0.08em",
-                                    marginBottom: "0.3rem",
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                    gap: "0.75rem",
-                                    flexWrap: "wrap",
-                                  }}
-                                >
-                                  <span>{a.type}</span>
+                                {draft.type}
+                                {draft.selectedText && (
                                   <span
                                     style={{
-                                      display: "flex",
-                                      gap: "0.75rem",
-                                    }}
-                                  >
-                                    <button
-                                      onClick={() => toggleHistory(a.id)}
-                                      style={{
-                                        background: "transparent",
-                                        border: "none",
-                                        padding: 0,
-                                        fontSize: "0.7rem",
-                                        fontWeight: 600,
-                                        color: "var(--nr-text-soft)",
-                                        cursor: "pointer",
-                                        textTransform: "uppercase",
-                                        letterSpacing: "0.08em",
-                                      }}
-                                    >
-                                      {isHistoryOpen ? "Hide history" : "History"}
-                                    </button>
-                                    <button
-                                      onClick={() => toggleComments(a.id)}
-                                      style={{
-                                        background: "transparent",
-                                        border: "none",
-                                        padding: 0,
-                                        fontSize: "0.7rem",
-                                        fontWeight: 600,
-                                        color: "var(--nr-text-soft)",
-                                        cursor: "pointer",
-                                        textTransform: "uppercase",
-                                        letterSpacing: "0.08em",
-                                      }}
-                                    >
-                                      {isCommentsOpen
-                                        ? "Hide comments"
-                                        : `Comments${
-                                            comments.length > 0
-                                              ? ` (${comments.length})`
-                                              : ""
-                                          }`}
-                                    </button>
-                                  </span>
-                                </div>
-                                {a.selectedText && (
-                                  <div
-                                    style={{
-                                      fontSize: "0.8rem",
-                                      color: "var(--nr-text-soft)",
+                                      textTransform: "none",
+                                      letterSpacing: 0,
                                       fontStyle: "italic",
-                                      marginBottom: "0.35rem",
+                                      marginLeft: "0.5rem",
                                     }}
                                   >
-                                    &ldquo;{a.selectedText}&rdquo;
-                                  </div>
-                                )}
-                                {a.type !== "highlight" && a.content}
-                                {a.isDraft && (
-                                  <div
-                                    style={{
-                                      fontSize: "0.7rem",
-                                      color: "var(--nr-accent)",
-                                      fontWeight: 700,
-                                      marginTop: "0.35rem",
-                                      textTransform: "uppercase",
-                                      letterSpacing: "0.08em",
-                                    }}
-                                  >
-                                    Unsaved
-                                  </div>
-                                )}
-
-                                {isHistoryOpen && (
-                                  <div
-                                    style={{
-                                      marginTop: "0.75rem",
-                                      borderTop:
-                                        "1px solid var(--nr-shadow-dark)",
-                                      paddingTop: "0.75rem",
-                                    }}
-                                  >
-                                    {history.length === 0 ? (
-                                      <div
-                                        style={{
-                                          fontSize: "0.8rem",
-                                          color: "var(--nr-text-soft)",
-                                          fontStyle: "italic",
-                                        }}
-                                      >
-                                        No saved changes yet.
-                                      </div>
-                                    ) : (
-                                      <ul
-                                        style={{
-                                          listStyle: "none",
-                                          padding: 0,
-                                          margin: 0,
-                                          display: "flex",
-                                          flexDirection: "column",
-                                          gap: "0.5rem",
-                                        }}
-                                      >
-                                        {history.map((e) => {
-                                          const author =
-                                            e.authorDisplayName ??
-                                            e.authorUsername;
-                                          return (
-                                            <li
-                                              key={e.id}
-                                              style={{
-                                                fontSize: "0.8rem",
-                                                color: "var(--nr-text)",
-                                              }}
-                                            >
-                                              <div style={{ fontWeight: 600 }}>
-                                                {author} · {e.action} ·{" "}
-                                                {new Date(
-                                                  e.createdAt
-                                                ).toLocaleString()}
-                                              </div>
-                                              <div
-                                                style={{
-                                                  fontSize: "0.75rem",
-                                                  color: "var(--nr-text-soft)",
-                                                  marginTop: "0.15rem",
-                                                }}
-                                              >
-                                                {e.versionMessage}
-                                              </div>
-                                              {e.beforeData?.content && (
-                                                <div
-                                                  style={{
-                                                    fontSize: "0.8rem",
-                                                    color:
-                                                      "var(--nr-text-soft)",
-                                                    textDecoration:
-                                                      "line-through",
-                                                    marginTop: "0.35rem",
-                                                  }}
-                                                >
-                                                  {e.beforeData.content}
-                                                </div>
-                                              )}
-                                              {e.afterData?.content && (
-                                                <div
-                                                  style={{
-                                                    fontSize: "0.8rem",
-                                                    color: "var(--nr-text)",
-                                                    marginTop: "0.2rem",
-                                                  }}
-                                                >
-                                                  {e.afterData.content}
-                                                </div>
-                                              )}
-                                            </li>
-                                          );
-                                        })}
-                                      </ul>
-                                    )}
-                                  </div>
-                                )}
-
-                                {isCommentsOpen && (
-                                  <div
-                                    style={{
-                                      marginTop: "0.75rem",
-                                      borderTop:
-                                        "1px solid var(--nr-shadow-dark)",
-                                      paddingTop: "0.75rem",
-                                    }}
-                                  >
-                                    {commentsLoading && comments.length === 0 ? (
-                                      <div
-                                        style={{
-                                          fontSize: "0.8rem",
-                                          color: "var(--nr-text-soft)",
-                                        }}
-                                      >
-                                        Loading comments
-                                      </div>
-                                    ) : comments.length === 0 ? (
-                                      <div
-                                        style={{
-                                          fontSize: "0.8rem",
-                                          color: "var(--nr-text-soft)",
-                                          fontStyle: "italic",
-                                          marginBottom: "0.5rem",
-                                        }}
-                                      >
-                                        No comments yet. Be the first to reply.
-                                      </div>
-                                    ) : (
-                                      <ul
-                                        style={{
-                                          listStyle: "none",
-                                          padding: 0,
-                                          margin: 0,
-                                          display: "flex",
-                                          flexDirection: "column",
-                                          gap: "0.5rem",
-                                          marginBottom: "0.75rem",
-                                        }}
-                                      >
-                                        {comments.map((c) => (
-                                          <li
-                                            key={c.id}
-                                            style={{
-                                              fontSize: "0.85rem",
-                                              color: "var(--nr-text)",
-                                              background: "var(--nr-bg)",
-                                              padding: "0.5rem 0.75rem",
-                                              borderRadius: "0.5rem",
-                                            }}
-                                          >
-                                            <div
-                                              style={{
-                                                fontSize: "0.7rem",
-                                                color:
-                                                  "var(--nr-text-soft)",
-                                                marginBottom: "0.15rem",
-                                              }}
-                                            >
-                                              {c.authorDisplayName ??
-                                                c.authorUsername}{" "}
-                                              ·{" "}
-                                              {new Date(
-                                                c.createdAt
-                                              ).toLocaleString()}
-                                            </div>
-                                            {c.content}
-                                          </li>
-                                        ))}
-                                      </ul>
-                                    )}
-
-                                    {commentError && (
-                                      <div
-                                        className="nr-error"
-                                        style={{ marginBottom: "0.5rem" }}
-                                      >
-                                        {commentError}
-                                      </div>
-                                    )}
-
-                                    <textarea
-                                      className="nr-input"
-                                      rows={2}
-                                      placeholder="Write a reply"
-                                      value={commentDraft}
-                                      onChange={(e) =>
-                                        setCommentDraft(e.target.value)
-                                      }
-                                    />
-                                    <div
-                                      style={{
-                                        display: "flex",
-                                        justifyContent: "flex-end",
-                                        marginTop: "0.5rem",
-                                      }}
-                                    >
-                                      <button
-                                        onClick={() => submitComment(a.id)}
-                                        className="nr-button"
-                                        style={{ width: "auto" }}
-                                        disabled={
-                                          commentSaving ||
-                                          commentDraft.trim().length === 0
-                                        }
-                                      >
-                                        {commentSaving
-                                          ? "Sending"
-                                          : "Post reply"}
-                                      </button>
-                                    </div>
-                                  </div>
-                                )}
-
-                                {!isOwn && canSuggest && (
-                                  <div style={{ marginTop: "0.5rem" }}>
-                                    <button
-                                      onClick={() =>
-                                        setSuggest({
-                                          annotationId: a.id,
-                                          originalContent: a.content,
-                                          proposedContent: a.content,
-                                          note: "",
-                                        })
-                                      }
-                                      className="nr-link"
-                                      style={{
-                                        background: "transparent",
-                                        border: "none",
-                                        padding: 0,
-                                        fontSize: "0.8rem",
-                                        cursor: "pointer",
-                                      }}
-                                    >
-                                      Suggest an edit
-                                    </button>
-                                  </div>
+                                    on &ldquo;
+                                    {draft.selectedText.slice(0, 60)}
+                                    {draft.selectedText.length > 60
+                                      ? "..."
+                                      : ""}
+                                    &rdquo;
+                                  </span>
                                 )}
                               </div>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      {draft && draft.passageId === p.id && (
-                        <div
-                          className="nr-surface"
-                          style={{
-                            padding: "1rem",
-                            marginTop: "0.75rem",
-                            maxWidth: readingWidth,
-                            marginLeft: "auto",
-                            marginRight: "auto",
-                          }}
-                        >
-                          <div
-                            style={{
-                              fontSize: "0.7rem",
-                              color: "var(--nr-text-soft)",
-                              textTransform: "uppercase",
-                              letterSpacing: "0.08em",
-                              marginBottom: "0.5rem",
-                            }}
-                          >
-                            {draft.type}
-                            {draft.selectedText && (
-                              <span
+                              <button
+                                onClick={() => setDraft(null)}
+                                aria-label="Close annotation editor"
+                                className="nr-surface-sm"
                                 style={{
-                                  textTransform: "none",
-                                  letterSpacing: 0,
-                                  fontStyle: "italic",
-                                  marginLeft: "0.5rem",
+                                  width: "1.75rem",
+                                  height: "1.75rem",
+                                  borderRadius: "0.5rem",
+                                  border: "none",
+                                  cursor: "pointer",
+                                  color: "var(--nr-text)",
+                                  fontWeight: 700,
+                                  fontSize: "0.8rem",
                                 }}
                               >
-                                on &ldquo;{draft.selectedText.slice(0, 60)}
-                                {draft.selectedText.length > 60 ? "..." : ""}
-                                &rdquo;
-                              </span>
+                                ×
+                              </button>
+                            </div>
+                            {draft.type !== "highlight" && (
+                              <textarea
+                                className="nr-input"
+                                rows={3}
+                                placeholder="Write your thought"
+                                value={draft.content}
+                                onChange={(e) =>
+                                  setDraft({
+                                    ...draft,
+                                    content: e.target.value,
+                                  })
+                                }
+                                autoFocus
+                              />
                             )}
-                          </div>
-                          {draft.type !== "highlight" && (
-                            <textarea
-                              className="nr-input"
-                              rows={3}
-                              placeholder="Write your thought"
-                              value={draft.content}
-                              onChange={(e) =>
-                                setDraft({ ...draft, content: e.target.value })
-                              }
-                              autoFocus
-                            />
-                          )}
-                          <div
-                            style={{
-                              display: "flex",
-                              gap: "0.5rem",
-                              marginTop: "0.75rem",
-                              justifyContent: "flex-end",
-                            }}
-                          >
-                            <button
-                              onClick={() => setDraft(null)}
-                              className="nr-button"
-                              style={{ width: "auto" }}
+                            <div
+                              style={{
+                                display: "flex",
+                                gap: "0.5rem",
+                                marginTop: "0.75rem",
+                                justifyContent: "flex-end",
+                              }}
                             >
-                              Cancel
-                            </button>
-                            <button
-                              onClick={submitDraft}
-                              className="nr-button"
-                              style={{ width: "auto" }}
-                            >
-                              Add {draft.type}
-                            </button>
+                              <button
+                                onClick={() => setDraft(null)}
+                                className="nr-button"
+                                style={{ width: "auto" }}
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                onClick={submitDraft}
+                                className="nr-button"
+                                style={{ width: "auto" }}
+                              >
+                                Add {draft.type}
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </section>
-          );
-        })}
-      </div>
+
+              {/* NOTES COLUMN */}
+              {!isMobile && (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "0.75rem",
+                    position: "sticky",
+                    top: "5rem",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: "0.7rem",
+                      color: "var(--nr-text-soft)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.08em",
+                      marginBottom: "0.25rem",
+                    }}
+                  >
+                    Notes in {chapter.title}
+                  </div>
+                  {chapterPassages.map((p) => {
+                    const list = annotationsByPassage.get(p.id) ?? [];
+                    if (list.length === 0) return null;
+                    return (
+                      <div key={p.id}>
+                        {list.map((a) => (
+                          <NoteCard
+                            key={a.id}
+                            annotation={a}
+                            isOwn={a.authorId === currentUserId}
+                            canSuggest={canSuggest}
+                            historyOpen={historyOpenId === a.id}
+                            commentsOpen={commentsOpenId === a.id}
+                            history={historyCache[a.id] ?? []}
+                            comments={commentsCache[a.id] ?? []}
+                            commentsLoading={commentsLoading}
+                            commentDraft={commentDraft}
+                            commentSaving={commentSaving}
+                            commentError={commentError}
+                            onToggleHistory={() => toggleHistory(a.id)}
+                            onToggleComments={() => toggleComments(a.id)}
+                            onCommentDraftChange={setCommentDraft}
+                            onSubmitComment={() => submitComment(a.id)}
+                            onSuggest={() =>
+                              setSuggest({
+                                annotationId: a.id,
+                                originalContent: a.content,
+                                proposedContent: a.content,
+                                note: "",
+                              })
+                            }
+                          />
+                        ))}
+                      </div>
+                    );
+                  })}
+                  {chapterPassages.every(
+                    (p) => (annotationsByPassage.get(p.id) ?? []).length === 0
+                  ) && (
+                    <div
+                      className="nr-inset"
+                      style={{
+                        padding: "0.75rem 1rem",
+                        fontSize: "0.85rem",
+                        color: "var(--nr-text-soft)",
+                        fontStyle: "italic",
+                      }}
+                    >
+                      No notes in this chapter yet. Select text on the left to
+                      add one.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* NOTES COLUMN, mobile: under the passage */}
+              {isMobile && (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "0.5rem",
+                  }}
+                >
+                  {chapterPassages.map((p) => {
+                    const list = annotationsByPassage.get(p.id) ?? [];
+                    if (list.length === 0) return null;
+                    return (
+                      <div key={p.id}>
+                        {list.map((a) => (
+                          <NoteCard
+                            key={a.id}
+                            annotation={a}
+                            isOwn={a.authorId === currentUserId}
+                            canSuggest={canSuggest}
+                            historyOpen={historyOpenId === a.id}
+                            commentsOpen={commentsOpenId === a.id}
+                            history={historyCache[a.id] ?? []}
+                            comments={commentsCache[a.id] ?? []}
+                            commentsLoading={commentsLoading}
+                            commentDraft={commentDraft}
+                            commentSaving={commentSaving}
+                            commentError={commentError}
+                            onToggleHistory={() => toggleHistory(a.id)}
+                            onToggleComments={() => toggleComments(a.id)}
+                            onCommentDraftChange={setCommentDraft}
+                            onSubmitComment={() => submitComment(a.id)}
+                            onSuggest={() =>
+                              setSuggest({
+                                annotationId: a.id,
+                                originalContent: a.content,
+                                proposedContent: a.content,
+                                note: "",
+                              })
+                            }
+                          />
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </section>
+        );
+      })}
 
       {selection && (
         <div
@@ -1592,6 +1417,310 @@ export default function Reader({
             : `Save changes (${draftCount})`}
         </button>
       </div>
+    </div>
+  );
+}
+
+function NoteCard({
+  annotation,
+  isOwn,
+  canSuggest,
+  historyOpen,
+  commentsOpen,
+  history,
+  comments,
+  commentsLoading,
+  commentDraft,
+  commentSaving,
+  commentError,
+  onToggleHistory,
+  onToggleComments,
+  onCommentDraftChange,
+  onSubmitComment,
+  onSuggest,
+}: {
+  annotation: Annotation;
+  isOwn: boolean;
+  canSuggest: boolean;
+  historyOpen: boolean;
+  commentsOpen: boolean;
+  history: HistoryEntry[];
+  comments: CommentEntry[];
+  commentsLoading: boolean;
+  commentDraft: string;
+  commentSaving: boolean;
+  commentError: string | null;
+  onToggleHistory: () => void;
+  onToggleComments: () => void;
+  onCommentDraftChange: (v: string) => void;
+  onSubmitComment: () => void;
+  onSuggest: () => void;
+}) {
+  const color = TYPE_COLORS[annotation.type];
+  return (
+    <div
+      className="nr-surface"
+      style={{
+        padding: "0.85rem 1rem",
+        borderLeft: `3px solid ${color}`,
+        borderRadius: "0.6rem",
+        marginBottom: "0.5rem",
+      }}
+    >
+      <div
+        style={{
+          fontSize: "0.7rem",
+          color,
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+          marginBottom: "0.3rem",
+          fontWeight: 700,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: "0.5rem",
+        }}
+      >
+        <span>{annotation.type}</span>
+        <span style={{ display: "flex", gap: "0.75rem" }}>
+          <button
+            onClick={onToggleHistory}
+            style={{
+              background: "transparent",
+              border: "none",
+              padding: 0,
+              fontSize: "0.65rem",
+              fontWeight: 600,
+              color: "var(--nr-text-soft)",
+              cursor: "pointer",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+            }}
+          >
+            {historyOpen ? "Hide" : "History"}
+          </button>
+          <button
+            onClick={onToggleComments}
+            style={{
+              background: "transparent",
+              border: "none",
+              padding: 0,
+              fontSize: "0.65rem",
+              fontWeight: 600,
+              color: "var(--nr-text-soft)",
+              cursor: "pointer",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+            }}
+          >
+            {commentsOpen
+              ? "Hide"
+              : `Comments${comments.length > 0 ? ` (${comments.length})` : ""}`}
+          </button>
+        </span>
+      </div>
+      {annotation.selectedText && (
+        <div
+          style={{
+            fontSize: "0.8rem",
+            color: "var(--nr-text-soft)",
+            fontStyle: "italic",
+            marginBottom: "0.35rem",
+          }}
+        >
+          &ldquo;{annotation.selectedText}&rdquo;
+        </div>
+      )}
+      {annotation.type !== "highlight" && (
+        <div style={{ fontSize: "0.9rem", color: "var(--nr-text)" }}>
+          {annotation.content}
+        </div>
+      )}
+      {annotation.isDraft && (
+        <div
+          style={{
+            fontSize: "0.65rem",
+            color: "var(--nr-accent)",
+            fontWeight: 700,
+            marginTop: "0.35rem",
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+          }}
+        >
+          Unsaved
+        </div>
+      )}
+
+      {historyOpen && (
+        <div
+          style={{
+            marginTop: "0.75rem",
+            borderTop: "1px solid var(--nr-shadow-dark)",
+            paddingTop: "0.75rem",
+          }}
+        >
+          {history.length === 0 ? (
+            <div
+              style={{
+                fontSize: "0.8rem",
+                color: "var(--nr-text-soft)",
+                fontStyle: "italic",
+              }}
+            >
+              No saved changes yet.
+            </div>
+          ) : (
+            <ul
+              style={{
+                listStyle: "none",
+                padding: 0,
+                margin: 0,
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.5rem",
+              }}
+            >
+              {history.map((e) => {
+                const author = e.authorDisplayName ?? e.authorUsername;
+                return (
+                  <li
+                    key={e.id}
+                    style={{ fontSize: "0.8rem", color: "var(--nr-text)" }}
+                  >
+                    <div style={{ fontWeight: 600 }}>
+                      {author} · {e.action} ·{" "}
+                      {new Date(e.createdAt).toLocaleString()}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "0.75rem",
+                        color: "var(--nr-text-soft)",
+                        marginTop: "0.15rem",
+                      }}
+                    >
+                      {e.versionMessage}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {commentsOpen && (
+        <div
+          style={{
+            marginTop: "0.75rem",
+            borderTop: "1px solid var(--nr-shadow-dark)",
+            paddingTop: "0.75rem",
+          }}
+        >
+          {commentsLoading && comments.length === 0 ? (
+            <div
+              style={{ fontSize: "0.8rem", color: "var(--nr-text-soft)" }}
+            >
+              Loading comments
+            </div>
+          ) : comments.length === 0 ? (
+            <div
+              style={{
+                fontSize: "0.8rem",
+                color: "var(--nr-text-soft)",
+                fontStyle: "italic",
+                marginBottom: "0.5rem",
+              }}
+            >
+              No comments yet. Be the first to reply.
+            </div>
+          ) : (
+            <ul
+              style={{
+                listStyle: "none",
+                padding: 0,
+                margin: 0,
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.5rem",
+                marginBottom: "0.75rem",
+              }}
+            >
+              {comments.map((c) => (
+                <li
+                  key={c.id}
+                  style={{
+                    fontSize: "0.85rem",
+                    color: "var(--nr-text)",
+                    background: "var(--nr-bg)",
+                    padding: "0.5rem 0.75rem",
+                    borderRadius: "0.5rem",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: "0.7rem",
+                      color: "var(--nr-text-soft)",
+                      marginBottom: "0.15rem",
+                    }}
+                  >
+                    {c.authorDisplayName ?? c.authorUsername} ·{" "}
+                    {new Date(c.createdAt).toLocaleString()}
+                  </div>
+                  {c.content}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {commentError && (
+            <div className="nr-error" style={{ marginBottom: "0.5rem" }}>
+              {commentError}
+            </div>
+          )}
+
+          <textarea
+            className="nr-input"
+            rows={2}
+            placeholder="Write a reply"
+            value={commentDraft}
+            onChange={(e) => onCommentDraftChange(e.target.value)}
+          />
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              marginTop: "0.5rem",
+            }}
+          >
+            <button
+              onClick={onSubmitComment}
+              className="nr-button"
+              style={{ width: "auto" }}
+              disabled={commentSaving || commentDraft.trim().length === 0}
+            >
+              {commentSaving ? "Sending" : "Post reply"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!isOwn && canSuggest && (
+        <div style={{ marginTop: "0.5rem" }}>
+          <button
+            onClick={onSuggest}
+            className="nr-link"
+            style={{
+              background: "transparent",
+              border: "none",
+              padding: 0,
+              fontSize: "0.8rem",
+              cursor: "pointer",
+            }}
+          >
+            Suggest an edit
+          </button>
+        </div>
+      )}
     </div>
   );
 }
