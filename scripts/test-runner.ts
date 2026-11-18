@@ -24,7 +24,7 @@ async function main() {
     {
       env: {
         ...process.env,
-        NODE_ENV: "development",
+        NODE_ENV: "test",
         DATABASE_URL:
           process.env.DATABASE_URL ??
           "postgresql://crossread:crossread_dev@127.0.0.1:5434/crossread_test",
@@ -37,9 +37,11 @@ async function main() {
   let serverOutput = "";
   server.stdout?.on("data", (d) => {
     serverOutput += d.toString();
+    process.stdout.write(d);
   });
   server.stderr?.on("data", (d) => {
     serverOutput += d.toString();
+    process.stderr.write(d);
   });
 
   server.on("exit", (code) => {

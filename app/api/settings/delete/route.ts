@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { eq, and, ne } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { users, projects, suggestions } from "@/lib/db/schema";
+import { users } from "@/lib/db/schema";
 import { getCurrentUser } from "@/lib/auth/session";
 import { verifyPassword } from "@/lib/auth/password";
+import { checkRateLimit, resetRateLimit } from "@/lib/rate-limit";
 
 const deleteSchema = z.object({
   password: z.string().min(1, "Enter your password to confirm"),
@@ -14,6 +15,23 @@ export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
+  const key = `delete:${user.id}:${ip}`;
+  const limit = checkRateLimit(key);
+
+  if (!limit.allowed) {
+    return NextResponse.json(
+      {
+        error: `Too many attempts. Try again in ${limit.retryAfterSeconds} seconds.`,
+      },
+      {
+        status: 429,
+        headers: { "Retry-After": String(limit.retryAfterSeconds) },
+      }
+    );
   }
 
   try {
@@ -34,26 +52,9 @@ export async function POST(request: Request) {
       );
     }
 
+    resetRateLimit(key);
+
     await db.transaction(async (tx) => {
-      const myProjects = await tx
-        .select({ id: projects.id })
-        .from(projects)
-        .where(eq(projects.ownerId, user.id));
-
-      const myProjectIds = myProjects.map((p) => p.id);
-
-      if (myProjectIds.length > 0) {
-        await tx
-          .update(suggestions)
-          .set({ status: "declined", updatedAt: new Date() })
-          .where(
-            and(
-              eq(suggestions.status, "open"),
-              ne(suggestions.authorId, user.id)
-            )
-          );
-      }
-
       await tx.delete(users).where(eq(users.id, user.id));
     });
 

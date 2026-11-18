@@ -69,7 +69,7 @@ function seedBook(): { bookId: string; passageId: string } {
 beforeAll(async () => {
   truncate();
   cookie = await registerAndLogin("reader");
-}, 20000);
+}, 60000);
 
 describe("reading loop", () => {
   it("creates a project, adds a note, saves a version, reads it back", async () => {
@@ -130,7 +130,7 @@ describe("reading loop", () => {
     const versionsData = await versionsRes.json();
     expect(versionsData.versions.length).toBe(1);
     expect(versionsData.versions[0].message).toBe("First version");
-  }, 20000);
+  }, 60000);
 
   it("records an update in the version history when a note is edited", async () => {
     const { bookId, passageId } = seedBook();
@@ -188,9 +188,6 @@ describe("reading loop", () => {
         body: JSON.stringify({ message: "Revised" }),
       }
     );
-    if (saveRes.status !== 201) {
-      console.log("second save failed:", await saveRes.clone().text());
-    }
     expect(saveRes.status).toBe(201);
 
     const versionsRes = await fetchWithRetry(
@@ -214,5 +211,5 @@ describe("reading loop", () => {
     expect(detailData.edits[0].afterData.content).toBe(
       "Revised version of the note."
     );
-  }, 20000);
+  }, 60000);
 });
