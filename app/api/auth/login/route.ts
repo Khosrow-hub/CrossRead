@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { verifyPassword } from "@/lib/auth/password";
 import { createSession } from "@/lib/auth/session";
+import { checkRateLimit, resetRateLimit } from "@/lib/rate-limit";
 
 const loginSchema = z.object({
   identifier: z.string().min(1, "Enter your username or email"),
@@ -12,6 +13,19 @@ const loginSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
+  const limit = checkRateLimit(`login:${ip}`);
+
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: `Too many attempts. Try again in ${limit.retryAfterSeconds} seconds.` },
+      {
+        status: 429,
+        headers: { "Retry-After": String(limit.retryAfterSeconds) },
+      }
+    );
+  }
+
   try {
     const body = await request.json();
     const parsed = loginSchema.safeParse(body);
@@ -47,6 +61,8 @@ export async function POST(request: Request) {
         { status: 401 }
       );
     }
+
+    resetRateLimit(`login:${ip}`);
 
     await createSession(user.id);
 
