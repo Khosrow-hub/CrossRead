@@ -27,6 +27,7 @@ async function loadAnnotationWithAccess(
       isDeleted: annotations.isDeleted,
       passageId: annotations.passageId,
       isDraft: annotations.isDraft,
+      pendingAction: annotations.pendingAction,
     })
     .from(annotations)
     .innerJoin(projects, eq(annotations.projectId, projects.id))
@@ -75,8 +76,10 @@ export async function PATCH(
       );
     }
 
-    const update: Record<string, string | Date> = {
+    const update: Record<string, string | Date | boolean | null> = {
       updatedAt: new Date(),
+      pendingAction: "update",
+      isDraft: true,
     };
     if (parsed.data.content !== undefined) {
       update.content = parsed.data.content;
@@ -93,6 +96,8 @@ export async function PATCH(
         id: annotations.id,
         content: annotations.content,
         type: annotations.type,
+        isDraft: annotations.isDraft,
+        pendingAction: annotations.pendingAction,
         updatedAt: annotations.updatedAt,
       });
 
@@ -130,12 +135,22 @@ export async function DELETE(
     );
   }
 
+  if (existing.pendingAction === "create") {
+    await db.delete(annotations).where(eq(annotations.id, annotationId));
+    return NextResponse.json({ ok: true, removed: true });
+  }
+
   await db
     .update(annotations)
-    .set({ isDeleted: true, updatedAt: new Date() })
+    .set({
+      isDeleted: true,
+      isDraft: true,
+      pendingAction: "delete",
+      updatedAt: new Date(),
+    })
     .where(
       and(eq(annotations.id, annotationId), eq(annotations.isDeleted, false))
     );
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, removed: false });
 }
