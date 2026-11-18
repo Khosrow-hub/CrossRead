@@ -121,11 +121,19 @@ export default function LoginPage() {
           marginTop: "1.75rem",
           fontSize: "0.7rem",
           color: "var(--nr-text-soft)",
-          opacity: 0.6,
           textAlign: "center",
+          lineHeight: 1.6,
         }}
       >
-        Terms and privacy are not published yet.
+        By continuing you agree to our{" "}
+        <Link href="/terms" className="nr-link" style={{ fontSize: "0.7rem" }}>
+          Terms
+        </Link>{" "}
+        and{" "}
+        <Link href="/privacy" className="nr-link" style={{ fontSize: "0.7rem" }}>
+          Privacy Policy
+        </Link>
+        .
       </p>
     </div>
   );

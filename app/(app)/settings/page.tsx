@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { requireUser } from "@/lib/auth/require-user";
 import { SettingsForm } from "@/features/settings/components/SettingsForm";
+import { DeleteAccountButton } from "@/features/settings/components/DeleteAccountButton";
 
 export default async function SettingsPage() {
   const user = await requireUser();
@@ -62,6 +64,66 @@ export default async function SettingsPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="nr-surface" style={{ padding: "2rem" }}>
+        <div
+          style={{
+            fontSize: "0.75rem",
+            color: "var(--nr-text-soft)",
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+            marginBottom: "1rem",
+          }}
+        >
+          Legal
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+          <Link href="/terms" className="nr-link" style={{ fontSize: "0.9rem" }}>
+            Terms of Service
+          </Link>
+          <Link
+            href="/privacy"
+            className="nr-link"
+            style={{ fontSize: "0.9rem" }}
+          >
+            Privacy Policy
+          </Link>
+          <Link
+            href="/cookies"
+            className="nr-link"
+            style={{ fontSize: "0.9rem" }}
+          >
+            Cookies
+          </Link>
+        </div>
+      </div>
+
+      <div className="nr-surface" style={{ padding: "2rem" }}>
+        <div
+          style={{
+            fontSize: "0.75rem",
+            color: "var(--nr-text-soft)",
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+            marginBottom: "1rem",
+          }}
+        >
+          Danger zone
+        </div>
+        <p
+          style={{
+            fontSize: "0.9rem",
+            color: "var(--nr-text)",
+            marginBottom: "1rem",
+            lineHeight: 1.6,
+          }}
+        >
+          Deleting your account removes everything you have written: projects,
+          notes, versions, comments. This cannot be undone. If you want a copy of
+          your work first, export any project you care about from its page.
+        </p>
+        <DeleteAccountButton />
       </div>
     </div>
   );
