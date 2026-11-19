@@ -58,7 +58,7 @@ export default function LoginPage() {
           />
         </div>
 
-        <div style={{ marginBottom: "0.5rem" }}>
+        <div style={{ marginBottom: "1.5rem" }}>
           <label className="nr-auth-label" htmlFor="password">
             Password
           </label>
@@ -73,31 +73,7 @@ export default function LoginPage() {
           />
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            marginBottom: "1.25rem",
-          }}
-        >
-          <span
-            style={{
-              fontSize: "0.75rem",
-              color: "var(--nr-text-soft)",
-              opacity: 0.6,
-              cursor: "not-allowed",
-            }}
-            title="Password reset is not built yet"
-          >
-            Forgot password?
-          </span>
-        </div>
-
-        <button
-          type="submit"
-          className="nr-button nr-auth-button"
-          disabled={loading}
-        >
+        <button type="submit" className="nr-button" disabled={loading}>
           {loading ? "Logging in" : "Log in"}
         </button>
       </form>
@@ -111,29 +87,9 @@ export default function LoginPage() {
         }}
       >
         New to CrossRead?{" "}
-        <Link href="/register" className="nr-link">
+        <Link href="/register" className="nr-link" style={{ fontSize: "0.85rem" }}>
           Create an account
         </Link>
-      </p>
-
-      <p
-        style={{
-          marginTop: "1.75rem",
-          fontSize: "0.7rem",
-          color: "var(--nr-text-soft)",
-          textAlign: "center",
-          lineHeight: 1.6,
-        }}
-      >
-        By continuing you agree to our{" "}
-        <Link href="/terms" className="nr-link" style={{ fontSize: "0.7rem" }}>
-          Terms
-        </Link>{" "}
-        and{" "}
-        <Link href="/privacy" className="nr-link" style={{ fontSize: "0.7rem" }}>
-          Privacy Policy
-        </Link>
-        .
       </p>
     </div>
   );

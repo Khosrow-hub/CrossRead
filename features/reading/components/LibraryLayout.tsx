@@ -96,8 +96,8 @@ function ContinueReadingCard({
   layout: "row" | "stack";
 }) {
   const isStack = layout === "stack";
-  const coverW = isStack ? "7rem" : "9rem";
-  const coverH = isStack ? "9.5rem" : "12.5rem";
+  const coverW = isStack ? "8rem" : "10rem";
+  const coverH = isStack ? "11rem" : "14rem";
 
   return (
     <div
@@ -115,7 +115,7 @@ function ContinueReadingCard({
           style={{
             display: "flex",
             flexDirection: isStack ? "column" : "row",
-            gap: "1.75rem",
+            gap: "2rem",
             alignItems: isStack ? "center" : "flex-start",
           }}
         >
@@ -128,7 +128,7 @@ function ContinueReadingCard({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: "2.5rem",
+              fontSize: "3rem",
               fontWeight: 700,
               color: "var(--nr-text-soft)",
               flexShrink: 0,
@@ -160,10 +160,11 @@ function ContinueReadingCard({
           >
             <div
               style={{
-                fontSize: "0.75rem",
+                fontSize: "0.7rem",
                 color: "var(--nr-text-soft)",
                 textTransform: "uppercase",
-                letterSpacing: "0.08em",
+                letterSpacing: "0.1em",
+                fontWeight: 700,
                 marginBottom: "0.5rem",
               }}
             >
@@ -171,10 +172,11 @@ function ContinueReadingCard({
             </div>
             <h1
               style={{
-                fontSize: "1.75rem",
-                fontWeight: 700,
+                fontSize: "clamp(1.6rem, 2.5vw, 2.1rem)",
+                fontWeight: 800,
                 color: "var(--nr-text)",
                 marginBottom: "0.25rem",
+                letterSpacing: "-0.02em",
               }}
             >
               {current.bookTitle}
@@ -183,14 +185,22 @@ function ContinueReadingCard({
               style={{
                 fontSize: "0.95rem",
                 color: "var(--nr-text-soft)",
-                marginBottom: "1.25rem",
+                marginBottom: "1.5rem",
               }}
             >
               {current.bookAuthor}
             </div>
 
-            <div style={{ marginBottom: "0.4rem", fontSize: "0.85rem" }}>
-              <span style={{ color: "var(--nr-text-soft)" }}>Progress </span>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: "0.8rem",
+                color: "var(--nr-text-soft)",
+                marginBottom: "0.4rem",
+              }}
+            >
+              <span>Progress</span>
               <span style={{ fontWeight: 700, color: "var(--nr-text)" }}>
                 {current.progressPercentage}%
               </span>
@@ -199,17 +209,17 @@ function ContinueReadingCard({
               className="nr-inset"
               style={{
                 width: "100%",
-                height: "0.6rem",
+                height: "0.5rem",
                 borderRadius: "0.3rem",
                 overflow: "hidden",
-                marginBottom: "1rem",
+                marginBottom: "1.25rem",
               }}
             >
               <div
                 style={{
                   width: `${current.progressPercentage}%`,
                   height: "100%",
-                  background: "var(--nr-accent)",
+                  background: "var(--nr-text)",
                   borderRadius: "0.3rem",
                 }}
               />
@@ -217,49 +227,41 @@ function ContinueReadingCard({
 
             <div
               style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.3rem",
+                marginBottom: "1.5rem",
                 fontSize: "0.85rem",
                 color: "var(--nr-text-soft)",
-                marginBottom: "0.35rem",
               }}
             >
-              Current location:{" "}
-              <span style={{ color: "var(--nr-text)" }}>
-                {current.currentLocation ?? "Not yet placed"}
-              </span>
-            </div>
-            <div
-              style={{
-                fontSize: "0.85rem",
-                color: "var(--nr-text-soft)",
-                marginBottom: "0.35rem",
-              }}
-            >
-              Last read:{" "}
-              <span style={{ color: "var(--nr-text)" }}>
-                {current.lastReadAgo}
-              </span>
-            </div>
-            {current.latestVersionMessage && (
-              <div
-                style={{
-                  fontSize: "0.85rem",
-                  color: "var(--nr-text-soft)",
-                  marginBottom: "0.35rem",
-                }}
-              >
-                Latest version:{" "}
+              <div>
+                Current location:{" "}
                 <span style={{ color: "var(--nr-text)" }}>
-                  {current.latestVersionMessage}
+                  {current.currentLocation ?? "Not yet placed"}
                 </span>
               </div>
-            )}
+              <div>
+                Last read:{" "}
+                <span style={{ color: "var(--nr-text)" }}>
+                  {current.lastReadAgo}
+                </span>
+              </div>
+              {current.latestVersionMessage && (
+                <div>
+                  Latest version:{" "}
+                  <span style={{ color: "var(--nr-text)" }}>
+                    {current.latestVersionMessage}
+                  </span>
+                </div>
+              )}
+            </div>
 
             <div
               style={{
                 display: "flex",
                 gap: "0.75rem",
                 alignItems: "center",
-                marginTop: "1rem",
                 flexWrap: "wrap",
                 justifyContent: isStack ? "center" : "flex-start",
               }}
@@ -276,7 +278,7 @@ function ContinueReadingCard({
                 className="nr-link"
                 style={{ fontSize: "0.9rem" }}
               >
-                View reading history
+                Reading history
               </Link>
             </div>
           </div>
@@ -288,17 +290,19 @@ function ContinueReadingCard({
             flexDirection: "column",
             justifyContent: "center",
             alignItems: isStack ? "center" : "flex-start",
-            gap: "1.25rem",
+            gap: "1.5rem",
             textAlign: isStack ? "center" : "left",
+            padding: "1rem 0",
           }}
         >
           <div>
             <div
               style={{
-                fontSize: "0.75rem",
+                fontSize: "0.7rem",
                 color: "var(--nr-text-soft)",
                 textTransform: "uppercase",
-                letterSpacing: "0.08em",
+                letterSpacing: "0.1em",
+                fontWeight: 700,
                 marginBottom: "0.5rem",
               }}
             >
@@ -306,10 +310,11 @@ function ContinueReadingCard({
             </div>
             <h1
               style={{
-                fontSize: "1.75rem",
-                fontWeight: 700,
+                fontSize: "clamp(1.6rem, 2.5vw, 2.1rem)",
+                fontWeight: 800,
                 color: "var(--nr-text)",
-                marginBottom: "0.5rem",
+                marginBottom: "0.75rem",
+                letterSpacing: "-0.02em",
               }}
             >
               Your next reading journey starts here
@@ -319,10 +324,11 @@ function ContinueReadingCard({
                 fontSize: "0.95rem",
                 color: "var(--nr-text-soft)",
                 maxWidth: "32rem",
+                lineHeight: 1.6,
               }}
             >
-              Explore books, start a reading project, and build on each
-              other&apos;s interpretations.
+              Pick a book from the catalog, start a project, and build a reading
+              you can return to and share.
             </p>
           </div>
           <Link
@@ -376,20 +382,22 @@ function RightCard({
     <div
       className="nr-surface"
       style={{
-        padding: "0.95rem 1rem",
+        padding: "1.1rem",
         display: "flex",
         flexDirection: "column",
         background: highlighted ? "var(--nr-surface-raised)" : undefined,
-        minHeight: "4rem",
+        minHeight: "4.5rem",
+        position: "relative",
       }}
     >
       <div
         style={{
-          fontSize: "0.7rem",
+          fontSize: "0.65rem",
           color: "var(--nr-text-soft)",
           textTransform: "uppercase",
-          letterSpacing: "0.08em",
-          marginBottom: "0.5rem",
+          letterSpacing: "0.1em",
+          fontWeight: 700,
+          marginBottom: "0.6rem",
         }}
       >
         {title}
@@ -399,16 +407,53 @@ function RightCard({
   );
 }
 
-function EmptyText({ children }: { children: React.ReactNode }) {
+function EmptyState({
+  title,
+  hint,
+  actionLabel,
+  actionHref,
+}: {
+  title: string;
+  hint: string;
+  actionLabel?: string;
+  actionHref?: string;
+}) {
   return (
     <div
       style={{
-        fontSize: "0.8rem",
-        color: "var(--nr-text-soft)",
-        fontStyle: "italic",
+        display: "flex",
+        flexDirection: "column",
+        gap: "0.4rem",
+        alignItems: "flex-start",
       }}
     >
-      {children}
+      <div
+        style={{
+          fontSize: "0.85rem",
+          fontWeight: 700,
+          color: "var(--nr-text)",
+        }}
+      >
+        {title}
+      </div>
+      <div
+        style={{
+          fontSize: "0.8rem",
+          color: "var(--nr-text-soft)",
+          lineHeight: 1.5,
+        }}
+      >
+        {hint}
+      </div>
+      {actionLabel && actionHref && (
+        <Link
+          href={actionHref}
+          className="nr-link"
+          style={{ fontSize: "0.8rem", marginTop: "0.25rem" }}
+        >
+          {actionLabel}
+        </Link>
+      )}
     </div>
   );
 }
@@ -417,18 +462,23 @@ function ProjectsCard({ myProjects }: { myProjects: Props["myProjects"] }) {
   return (
     <RightCard title="Your projects">
       {myProjects.length === 0 ? (
-        <EmptyText>No projects yet</EmptyText>
+        <EmptyState
+          title="No projects yet"
+          hint="A reading project is your notes on one book, kept together."
+          actionLabel="Start one"
+          actionHref="/projects/new"
+        />
       ) : (
         <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
           {myProjects.map((p) => (
-            <li key={p.id} style={{ marginBottom: "0.55rem" }}>
+            <li key={p.id} style={{ marginBottom: "0.6rem" }}>
               <Link
                 href={`/projects/${p.id}`}
                 style={{
                   color: "var(--nr-text)",
                   textDecoration: "none",
                   fontSize: "0.9rem",
-                  fontWeight: 600,
+                  fontWeight: 700,
                 }}
               >
                 {p.name}
@@ -457,11 +507,14 @@ function VersionsCard({
   return (
     <RightCard title="Recent versions">
       {recentVersions.length === 0 ? (
-        <EmptyText>No versions yet</EmptyText>
+        <EmptyState
+          title="No saved versions"
+          hint="Press Save changes in the reader to keep a version."
+        />
       ) : (
         <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
           {recentVersions.map((v) => (
-            <li key={v.id} style={{ marginBottom: "0.55rem" }}>
+            <li key={v.id} style={{ marginBottom: "0.6rem" }}>
               <div
                 style={{
                   fontSize: "0.85rem",
@@ -495,15 +548,20 @@ function SuggestionsCard({
   return (
     <RightCard title="Suggestions" highlighted>
       {openSuggestionCount === 0 ? (
-        <EmptyText>No suggestions yet</EmptyText>
+        <EmptyState
+          title="No suggestions yet"
+          hint="When another reader proposes an edit to your notes, it appears here."
+        />
       ) : (
         <div>
           <div
             style={{
-              fontSize: "1.75rem",
-              fontWeight: 700,
+              fontSize: "2.25rem",
+              fontWeight: 800,
               color: "var(--nr-text)",
-              marginBottom: "0.25rem",
+              letterSpacing: "-0.02em",
+              lineHeight: 1,
+              marginBottom: "0.4rem",
             }}
           >
             {openSuggestionCount}
@@ -525,20 +583,30 @@ function SuggestionsCard({
 
 function NotesCard({ recentNotes }: { recentNotes: Props["recentNotes"] }) {
   return (
-    <div className="nr-surface" style={{ padding: "1rem 1.25rem" }}>
+    <div
+      className="nr-surface"
+      style={{
+        padding: "1.1rem 1.25rem",
+        position: "relative",
+      }}
+    >
       <div
         style={{
-          fontSize: "0.75rem",
+          fontSize: "0.65rem",
           color: "var(--nr-text-soft)",
           textTransform: "uppercase",
-          letterSpacing: "0.08em",
-          marginBottom: "0.6rem",
+          letterSpacing: "0.1em",
+          fontWeight: 700,
+          marginBottom: "0.75rem",
         }}
       >
         Recent notes
       </div>
       {recentNotes.length === 0 ? (
-        <EmptyText>No notes yet</EmptyText>
+        <EmptyState
+          title="No notes yet"
+          hint="Open a project and select a sentence to add one."
+        />
       ) : (
         <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
           {recentNotes.map((n) => (
@@ -548,7 +616,7 @@ function NotesCard({ recentNotes }: { recentNotes: Props["recentNotes"] }) {
                 fontSize: "0.85rem",
                 color: "var(--nr-text)",
                 marginBottom: "0.5rem",
-                lineHeight: 1.4,
+                lineHeight: 1.5,
                 overflow: "hidden",
                 textOverflow: "ellipsis",
               }}
@@ -564,23 +632,29 @@ function NotesCard({ recentNotes }: { recentNotes: Props["recentNotes"] }) {
 
 function VersionsSavedCard({ versionCount }: { versionCount: number }) {
   return (
-    <div className="nr-surface" style={{ padding: "1rem" }}>
+    <div
+      className="nr-surface"
+      style={{ padding: "1.1rem", position: "relative" }}
+    >
       <div
         style={{
-          fontSize: "0.75rem",
+          fontSize: "0.65rem",
           color: "var(--nr-text-soft)",
           textTransform: "uppercase",
-          letterSpacing: "0.08em",
+          letterSpacing: "0.1em",
+          fontWeight: 700,
         }}
       >
         Versions saved
       </div>
       <div
         style={{
-          fontSize: "2rem",
-          fontWeight: 700,
+          fontSize: "2.25rem",
+          fontWeight: 800,
           color: "var(--nr-text)",
-          marginTop: "0.35rem",
+          letterSpacing: "-0.02em",
+          lineHeight: 1,
+          marginTop: "0.5rem",
         }}
       >
         {versionCount}

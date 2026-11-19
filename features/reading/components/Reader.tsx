@@ -99,10 +99,10 @@ const DEFAULT_SETTINGS: ReaderSettings = {
 };
 
 const TYPE_COLORS: Record<AnnotationType, string> = {
-  highlight: "#c9a227",
-  note: "#4a6fd4",
-  question: "#8b5cf6",
-  interpretation: "#2f8a5f",
+  highlight: "var(--nr-text-soft)",
+  note: "var(--nr-text-soft)",
+  question: "var(--nr-text-soft)",
+  interpretation: "var(--nr-text-soft)",
 };
 
 function buildHighlightSegments(
@@ -665,12 +665,13 @@ export default function Reader({
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 2fr) minmax(0, 1fr)",
+                gridTemplateColumns: isMobile
+                  ? "1fr"
+                  : "minmax(0, 2fr) minmax(0, 1fr)",
                 gap: "1.25rem",
                 alignItems: "start",
               }}
             >
-              {/* READING COLUMN */}
               <div
                 style={{
                   background: "var(--nr-surface-raised)",
@@ -722,7 +723,7 @@ export default function Reader({
                               <mark
                                 key={i}
                                 style={{
-                                  background: "rgba(201, 162, 39, 0.35)",
+                                  background: "rgba(46, 58, 74, 0.15)",
                                   borderRadius: "0.2rem",
                                   padding: "0 0.05rem",
                                   color: "inherit",
@@ -843,7 +844,6 @@ export default function Reader({
                 </div>
               </div>
 
-              {/* NOTES COLUMN */}
               {!isMobile && (
                 <div
                   style={{
@@ -920,7 +920,6 @@ export default function Reader({
                 </div>
               )}
 
-              {/* NOTES COLUMN, mobile: under the passage */}
               {isMobile && (
                 <div
                   style={{
@@ -1456,13 +1455,12 @@ function NoteCard({
   onSubmitComment: () => void;
   onSuggest: () => void;
 }) {
-  const color = TYPE_COLORS[annotation.type];
   return (
     <div
       className="nr-surface"
       style={{
         padding: "0.85rem 1rem",
-        borderLeft: `3px solid ${color}`,
+        borderLeft: "3px solid var(--nr-text-soft)",
         borderRadius: "0.6rem",
         marginBottom: "0.5rem",
       }}
@@ -1470,7 +1468,7 @@ function NoteCard({
       <div
         style={{
           fontSize: "0.7rem",
-          color,
+          color: "var(--nr-text-soft)",
           textTransform: "uppercase",
           letterSpacing: "0.08em",
           marginBottom: "0.3rem",
@@ -1540,7 +1538,7 @@ function NoteCard({
         <div
           style={{
             fontSize: "0.65rem",
-            color: "var(--nr-accent)",
+            color: "var(--nr-text-soft)",
             fontWeight: 700,
             marginTop: "0.35rem",
             textTransform: "uppercase",
@@ -1617,9 +1615,7 @@ function NoteCard({
           }}
         >
           {commentsLoading && comments.length === 0 ? (
-            <div
-              style={{ fontSize: "0.8rem", color: "var(--nr-text-soft)" }}
-            >
+            <div style={{ fontSize: "0.8rem", color: "var(--nr-text-soft)" }}>
               Loading comments
             </div>
           ) : comments.length === 0 ? (

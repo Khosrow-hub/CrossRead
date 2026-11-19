@@ -74,7 +74,7 @@ export default function RegisterPage() {
           />
         </div>
 
-        <div style={{ marginBottom: "1.25rem" }}>
+        <div style={{ marginBottom: "1.5rem" }}>
           <label className="nr-auth-label" htmlFor="password">
             Password
           </label>
@@ -90,11 +90,7 @@ export default function RegisterPage() {
           />
         </div>
 
-        <button
-          type="submit"
-          className="nr-button nr-auth-button"
-          disabled={loading}
-        >
+        <button type="submit" className="nr-button" disabled={loading}>
           {loading ? "Creating account" : "Create account"}
         </button>
       </form>
@@ -108,21 +104,9 @@ export default function RegisterPage() {
         }}
       >
         Already have an account?{" "}
-        <Link href="/login" className="nr-link">
+        <Link href="/login" className="nr-link" style={{ fontSize: "0.85rem" }}>
           Log in
         </Link>
-      </p>
-
-      <p
-        style={{
-          marginTop: "1.75rem",
-          fontSize: "0.7rem",
-          color: "var(--nr-text-soft)",
-          opacity: 0.6,
-          textAlign: "center",
-        }}
-      >
-        Terms and privacy are not published yet.
       </p>
     </div>
   );
