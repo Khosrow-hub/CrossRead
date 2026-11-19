@@ -374,24 +374,20 @@ export function Rail({
     >
       <Link
         href="/library"
-        className="nr-inset"
+        aria-label="CrossRead home"
         style={{
-          height: "2.5rem",
+          display: "block",
+          width: "100%",
+          height: "3rem",
+          padding: "0.25rem",
           borderRadius: "0.75rem",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "0.4rem",
-          fontSize: "0.9rem",
-          fontWeight: 700,
-          color: "var(--nr-text)",
           textDecoration: "none",
         }}
       >
-        <span>C</span>
-        <span style={{ fontSize: "0.85rem", letterSpacing: "-0.01em" }}>
-          CrossRead
-        </span>
+        <div
+          className="brand-logo"
+          style={{ width: "100%", height: "100%" }}
+        />
       </Link>
 
       <div
